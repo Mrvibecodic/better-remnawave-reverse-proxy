@@ -22,9 +22,12 @@ add_node_to_panel() {
     echo -e "${COLOR_YELLOW}${LANG[ADD_NODE_TO_PANEL]}${COLOR_RESET}"
     sleep 1
 
-    get_panel_token
-    token=$(cat "$TOKEN_FILE")
-    if [ $? -ne 0 ]; then
+    if ! get_panel_token; then
+        echo -e "${COLOR_RED}${LANG[ERROR_TOKEN]}${COLOR_RESET}"
+        return 1
+    fi
+    token=$(cat "$TOKEN_FILE" 2>/dev/null)
+    if [ -z "$token" ]; then
         echo -e "${COLOR_RED}${LANG[ERROR_TOKEN]}${COLOR_RESET}"
         return 1
     fi
@@ -58,11 +61,20 @@ add_node_to_panel() {
     done
 
     echo -e "${COLOR_YELLOW}${LANG[GENERATE_KEYS]}${COLOR_RESET}"
-    local private_key=$(generate_xray_keys "$domain_url" "$token")
+    local private_key
+    private_key=$(generate_xray_keys "$domain_url" "$token")
+    if [ $? -ne 0 ] || [ -z "$private_key" ]; then
+        echo -e "${COLOR_RED}${LANG[ERROR_EXTRACT_PRIVATE_KEY]}${COLOR_RESET}"
+        return 1
+    fi
     printf "${COLOR_GREEN}${LANG[GENERATE_KEYS_SUCCESS]}${COLOR_RESET}\n"
 
     echo -e "${COLOR_YELLOW}${LANG[CREATING_CONFIG_PROFILE]}${COLOR_RESET}"
     read config_profile_uuid inbound_uuid <<< $(create_config_profile "$domain_url" "$token" "$entity_name" "$SELFSTEAL_DOMAIN" "$private_key" "$entity_name")
+    if [ -z "$config_profile_uuid" ] || [ -z "$inbound_uuid" ]; then
+        echo -e "${COLOR_RED}${LANG[ERROR_CREATE_CONFIG_PROFILE]}${COLOR_RESET}"
+        return 1
+    fi
     echo -e "${COLOR_GREEN}${LANG[CONFIG_PROFILE_CREATED]}: $entity_name${COLOR_RESET}"
 
     printf "${COLOR_YELLOW}${LANG[CREATE_NEW_NODE]}$SELFSTEAL_DOMAIN${COLOR_RESET}\n"

@@ -78,8 +78,15 @@ manage_warp_add_config() {
         return 0
     fi
 
-    get_panel_token
-    token=$(cat "$TOKEN_FILE")
+    if ! get_panel_token; then
+        echo -e "${COLOR_RED}${LANG[ERROR_TOKEN]}${COLOR_RESET}"
+        return 1
+    fi
+    token=$(cat "$TOKEN_FILE" 2>/dev/null)
+    if [ -z "$token" ]; then
+        echo -e "${COLOR_RED}${LANG[ERROR_TOKEN]}${COLOR_RESET}"
+        return 1
+    fi
 
     local config_response=$(make_api_request "GET" "${domain_url}/api/config-profiles" "$token")
     if [ -z "$config_response" ] || ! echo "$config_response" | jq -e '.' > /dev/null 2>&1; then
@@ -97,7 +104,7 @@ manage_warp_add_config() {
         echo -e "${COLOR_RED}${LANG[WARP_NO_CONFIGS]}: Empty configuration list${COLOR_RESET}"
         return 1
     fi
-    local configs=$(echo "$config_response" | jq -r '.response.configProfiles[] | select(.uuid and .name) | "\(.name) \(.uuid)"' 2>/dev/null)
+    local configs=$(echo "$config_response" | jq -r '.response.configProfiles[] | select(.uuid and .name) | "\(.uuid) \(.name)"' 2>/dev/null)
     if [ -z "$configs" ]; then
         echo -e "${COLOR_RED}${LANG[WARP_NO_CONFIGS]}: No valid configurations found in response${COLOR_RESET}"
         return 1
@@ -108,10 +115,10 @@ manage_warp_add_config() {
     echo -e ""
     local i=1
     declare -A config_map
-    while IFS=' ' read -r name uuid; do
+    while IFS=' ' read -r uuid name; do
         echo -e "${COLOR_YELLOW}$i. $name${COLOR_RESET}"
         config_map[$i]="$uuid"
-        ((i++))
+        i=$((i + 1))
     done <<< "$configs"
     echo -e ""
     echo -e "${COLOR_YELLOW}0. ${LANG[EXIT]}${COLOR_RESET}"
@@ -178,6 +185,10 @@ manage_warp_add_config() {
         config_json=$(echo "$config_json" | jq --argjson warp_rule "$warp_rule" '.routing.rules += [$warp_rule]' 2>/dev/null)
     fi
 
+    if [ -z "$config_json" ] || ! echo "$config_json" | jq -e . > /dev/null 2>&1; then
+        echo -e "${COLOR_RED}${LANG[WARP_UPDATE_FAIL]}: invalid config${COLOR_RESET}"
+        return 1
+    fi
     local update_response=$(make_api_request "PATCH" "${domain_url}/api/config-profiles" "$token" "{\"uuid\": \"$selected_uuid\", \"config\": $config_json}")
     if [ -z "$update_response" ] || ! echo "$update_response" | jq -e '.' > /dev/null 2>&1; then
         echo -e "${COLOR_RED}${LANG[WARP_UPDATE_FAIL]}: Invalid response${COLOR_RESET}"
@@ -205,8 +216,15 @@ manage_warp_delete_settings() {
         return 0
     fi
 
-    get_panel_token
-    token=$(cat "$TOKEN_FILE")
+    if ! get_panel_token; then
+        echo -e "${COLOR_RED}${LANG[ERROR_TOKEN]}${COLOR_RESET}"
+        return 1
+    fi
+    token=$(cat "$TOKEN_FILE" 2>/dev/null)
+    if [ -z "$token" ]; then
+        echo -e "${COLOR_RED}${LANG[ERROR_TOKEN]}${COLOR_RESET}"
+        return 1
+    fi
 
     local config_response=$(make_api_request "GET" "${domain_url}/api/config-profiles" "$token")
     if [ -z "$config_response" ] || ! echo "$config_response" | jq -e '.' > /dev/null 2>&1; then
@@ -225,7 +243,7 @@ manage_warp_delete_settings() {
         return 1
     fi
 
-    local configs=$(echo "$config_response" | jq -r '.response.configProfiles[] | select(.uuid and .name) | "\(.name) \(.uuid)"' 2>/dev/null)
+    local configs=$(echo "$config_response" | jq -r '.response.configProfiles[] | select(.uuid and .name) | "\(.uuid) \(.name)"' 2>/dev/null)
     if [ -z "$configs" ]; then
         echo -e "${COLOR_RED}${LANG[WARP_NO_CONFIGS]}: No valid configurations found in response${COLOR_RESET}"
         return 1
@@ -236,10 +254,10 @@ manage_warp_delete_settings() {
     echo -e ""
     local i=1
     declare -A config_map
-    while IFS=' ' read -r name uuid; do
+    while IFS=' ' read -r uuid name; do
         echo -e "${COLOR_YELLOW}$i. $name${COLOR_RESET}"
         config_map[$i]="$uuid"
-        ((i++))
+        i=$((i + 1))
     done <<< "$configs"
     echo -e ""
     echo -e "${COLOR_YELLOW}0. ${LANG[EXIT]}${COLOR_RESET}"
@@ -290,6 +308,10 @@ manage_warp_delete_settings() {
         echo -e "${COLOR_YELLOW}${LANG[WARP_NO_WARP_SETTINGS2]}${COLOR_RESET}"
     fi
 
+    if [ -z "$config_json" ] || ! echo "$config_json" | jq -e . > /dev/null 2>&1; then
+        echo -e "${COLOR_RED}${LANG[WARP_UPDATE_FAIL]}: invalid config${COLOR_RESET}"
+        return 1
+    fi
     local update_response=$(make_api_request "PATCH" "${domain_url}/api/config-profiles" "$token" "{\"uuid\": \"$selected_uuid\", \"config\": $config_json}")
     if [ -z "$update_response" ] || ! echo "$update_response" | jq -e '.' > /dev/null 2>&1; then
         echo -e "${COLOR_RED}${LANG[WARP_UPDATE_FAIL]}: Invalid response${COLOR_RESET}"

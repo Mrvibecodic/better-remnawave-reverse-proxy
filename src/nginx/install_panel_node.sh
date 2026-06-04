@@ -55,6 +55,9 @@ install_panel_node_nginx() {
 
     JWT_AUTH_SECRET=$(openssl rand -base64 48 | tr -dc 'a-zA-Z0-9' | head -c 64)
     JWT_API_TOKENS_SECRET=$(openssl rand -base64 48 | tr -dc 'a-zA-Z0-9' | head -c 64)
+    # better-fork: webhook-секрет и пароль БД генерируются (раньше были захардкожены)
+    WEBHOOK_SECRET_HEADER_VALUE=$(openssl rand -hex 32)
+    POSTGRES_PASSWORD_VALUE=$(openssl rand -base64 36 | tr -dc 'a-zA-Z0-9' | head -c 32)
 
     cat > .env <<EOL
 ### APP ###
@@ -69,7 +72,7 @@ API_INSTANCES=1
 
 ### DATABASE ###
 # FORMAT: postgresql://{user}:{password}@{host}:{port}/{database}
-DATABASE_URL="postgresql://postgres:postgres@remnawave-db:5432/postgres"
+DATABASE_URL="postgresql://postgres:${POSTGRES_PASSWORD_VALUE}@remnawave-db:5432/postgres"
 
 ### REDIS ###
 REDIS_SOCKET=/var/run/valkey/valkey.sock
@@ -131,7 +134,7 @@ WEBHOOK_ENABLED=false
 ### Only http:// or https:// are allowed.
 WEBHOOK_URL=https://your-webhook-url.com/endpoint
 ### This secret is used to sign the webhook payload, must be exact 64 characters. Only a-z, 0-9, A-Z are allowed.
-WEBHOOK_SECRET_HEADER=vsmu67Kmg6R8FjIOF1WUY8LWBHie4scdEqrfsKmyf4IAf8dY3nFS0wwYHkhh6ZvQ
+WEBHOOK_SECRET_HEADER=${WEBHOOK_SECRET_HEADER_VALUE}
 
 ### Bandwidth usage reached notifications
 BANDWIDTH_USAGE_NOTIFICATIONS_ENABLED=false
@@ -153,9 +156,11 @@ CLOUDFLARE_TOKEN=ey...
 ### For Postgres Docker container ###
 # NOT USED BY THE APP ITSELF
 POSTGRES_USER=postgres
-POSTGRES_PASSWORD=postgres
+POSTGRES_PASSWORD=${POSTGRES_PASSWORD_VALUE}
 POSTGRES_DB=postgres
 EOL
+
+    chmod 600 .env 2>/dev/null
 
     cat > docker-compose.yml <<EOL
 x-common: &common
@@ -537,18 +542,31 @@ EOL
     done
 
     # Register Remnawave
-    local token=$(register_remnawave "$domain_url" "$SUPERADMIN_USERNAME" "$SUPERADMIN_PASSWORD")
+    local token
+    token=$(register_remnawave "$domain_url" "$SUPERADMIN_USERNAME" "$SUPERADMIN_PASSWORD")
+    if [ $? -ne 0 ] || [ -z "$token" ]; then
+        printf "${COLOR_RED}${LANG[INSTALL_STEP_FAILED]}${COLOR_RESET}\n" "${LOGFILE}"
+        exit 1
+    fi
     echo -e "${COLOR_GREEN}${LANG[REGISTRATION_SUCCESS]}${COLOR_RESET}"
 
     # Get public key
     echo -e "${COLOR_YELLOW}${LANG[GET_PUBLIC_KEY]}${COLOR_RESET}"
     sleep 1
-    get_public_key "$domain_url" "$token" "$target_dir"
+    if ! get_public_key "$domain_url" "$token" "$target_dir"; then
+        printf "${COLOR_RED}${LANG[INSTALL_STEP_FAILED]}${COLOR_RESET}\n" "${LOGFILE}"
+        exit 1
+    fi
 
     # Generate Xray keys
     echo -e "${COLOR_YELLOW}${LANG[GENERATE_KEYS]}${COLOR_RESET}"
     sleep 1
-    local private_key=$(generate_xray_keys "$domain_url" "$token")
+    local private_key
+    private_key=$(generate_xray_keys "$domain_url" "$token")
+    if [ $? -ne 0 ] || [ -z "$private_key" ]; then
+        printf "${COLOR_RED}${LANG[INSTALL_STEP_FAILED]}${COLOR_RESET}\n" "${LOGFILE}"
+        exit 1
+    fi
     printf "${COLOR_GREEN}${LANG[GENERATE_KEYS_SUCCESS]}${COLOR_RESET}\n"
 
     # Delete default config profile
@@ -557,6 +575,10 @@ EOL
     # Create config profile
     echo -e "${COLOR_YELLOW}${LANG[CREATING_CONFIG_PROFILE]}${COLOR_RESET}"
     read config_profile_uuid inbound_uuid <<< $(create_config_profile "$domain_url" "$token" "StealConfig" "$SELFSTEAL_DOMAIN" "$private_key")
+    if [ -z "$config_profile_uuid" ] || [ -z "$inbound_uuid" ]; then
+        printf "${COLOR_RED}${LANG[INSTALL_STEP_FAILED]}${COLOR_RESET}\n" "${LOGFILE}"
+        exit 1
+    fi
     echo -e "${COLOR_GREEN}${LANG[CONFIG_PROFILE_CREATED]}${COLOR_RESET}"
 
     # Create node with config profile binding

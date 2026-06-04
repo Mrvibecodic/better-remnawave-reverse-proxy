@@ -4,8 +4,15 @@ SCRIPT_VERSION="3.0.6"
 UPDATE_AVAILABLE=false
 DIR_REMNAWAVE="/usr/local/remnawave_reverse/"
 LANG_FILE="${DIR_REMNAWAVE}selected_language"
-SCRIPT_URL="https://raw.githubusercontent.com/eGamesAPI/remnawave-reverse-proxy/refs/heads/main/install_remnawave.sh"
-LANG_BASE_URL="https://raw.githubusercontent.com/eGamesAPI/remnawave-reverse-proxy/refs/heads/main/src/lang"
+SCRIPT_URL="https://raw.githubusercontent.com/Mrvibecodic/better-remnawave-reverse-proxy/refs/heads/main/install_remnawave.sh"
+LANG_BASE_URL="https://raw.githubusercontent.com/Mrvibecodic/better-remnawave-reverse-proxy/refs/heads/main/src/lang"
+
+# better-fork (D1): ассоциативный массив переводов носит имя LANG и затирает переменную
+# окружения локали $LANG. Чтобы это не ломало локаль-зависимые утилиты (date/sort/certbot),
+# фиксируем локаль через LC_ALL — у неё наивысший приоритет и она не зависит от $LANG.
+# Имя массива НЕ переименовываем намеренно: lang-файлы догружаются с upstream и объявляют
+# именно LANG; переименование рассинхронизировало бы i18n.
+export LC_ALL="${LC_ALL:-C.UTF-8}"
 
 COLOR_RESET="\033[0m"
 COLOR_GREEN="\033[1;32m"
@@ -23,8 +30,8 @@ download_with_mirrors() {
     # Mirror URLs (GitHub raw content proxies)
     local mirrors=(
         "$file_url"
-        "https://cdn.jsdelivr.net/gh/eGamesAPI/remnawave-reverse-proxy@main/${file_url#*main/}"
-        "https://raw.githack.com/eGamesAPI/remnawave-reverse-proxy/main/${file_url#*main/}"
+        "https://cdn.jsdelivr.net/gh/Mrvibecodic/better-remnawave-reverse-proxy@main/${file_url#*main/}"
+        "https://raw.githack.com/Mrvibecodic/better-remnawave-reverse-proxy/main/${file_url#*main/}"
         "https://ghproxy.com/${file_url}"
     )
     
@@ -565,7 +572,7 @@ show_menu() {
     else
 		echo -e "${COLOR_GRAY}$(printf "${LANG[VERSION_LABEL]}" "$SCRIPT_VERSION")${COLOR_RESET}"
     fi
-    echo -e "${COLOR_GRAY}Wiki: https://wiki.egam.es/${COLOR_RESET}"
+    echo -e "${COLOR_GRAY}Wiki: https://github.com/Mrvibecodic/better-remnawave-reverse-proxy${COLOR_RESET}"
     echo -e ""
     echo -e "${COLOR_YELLOW}1. ${LANG[MENU_1]}${COLOR_RESET}" # Install Remnawave Components
     echo -e "${COLOR_YELLOW}2. ${LANG[MENU_2]}${COLOR_RESET}" # Reinstall panel/node
@@ -886,23 +893,13 @@ manage_custom_legiz() {
         1)
             if ! command -v yq >/dev/null 2>&1; then
                 echo -e "${COLOR_YELLOW}${LANG[INSTALLING_YQ]}${COLOR_RESET}"
-                
-                if ! wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq >/dev/null 2>&1; then
+                if ! install_or_update_yq install; then
                     echo -e "${COLOR_RED}${LANG[ERROR_DOWNLOADING_YQ]}${COLOR_RESET}"
                     sleep 2
                     log_clear
                     manage_custom_legiz
                     return 1
                 fi
-                
-                if ! chmod +x /usr/bin/yq; then
-                    echo -e "${COLOR_RED}${LANG[ERROR_SETTING_YQ_PERMISSIONS]}${COLOR_RESET}"
-                    sleep 2
-                    log_clear
-                    manage_custom_legiz
-                    return 1
-                fi
-                
                 echo -e "${COLOR_GREEN}${LANG[YQ_SUCCESSFULLY_INSTALLED]}${COLOR_RESET}"
                 sleep 1
             fi
@@ -1020,7 +1017,7 @@ manage_sub_page_upload() {
         printf "${COLOR_RED}${LANG[CONTAINER_NOT_FOUND]}${COLOR_RESET}\n" "remnawave-subscription-page"
         sleep 2
         log_clear
-        exit 1
+        return 1
     fi
     
     show_sub_page_menu
@@ -1230,7 +1227,7 @@ delete_applications() {
     while IFS= read -r platform; do
         echo -e "${COLOR_YELLOW}$i. $platform${COLOR_RESET}"
         platform_map[$i]="$platform"
-        ((i++))
+        i=$((i + 1))
     done <<< "$platforms"
     
     echo -e ""
@@ -1270,7 +1267,7 @@ delete_applications() {
     while IFS= read -r app; do
         echo -e "${COLOR_YELLOW}$j. $app${COLOR_RESET}"
         app_map[$j]="$app"
-        ((j++))
+        j=$((j + 1))
     done <<< "$apps"
     
     echo -e ""
@@ -1366,6 +1363,77 @@ show_custom_legiz_menu() {
     echo -e ""
 }
 
+install_or_update_yq() {
+    # better-fork: детект архитектуры (раньше был жёстко amd64 → ломалось на ARM) + валидация ELF.
+    local arch yq_arch
+    arch=$(uname -m)
+    case "$arch" in
+        x86_64|amd64)   yq_arch="amd64" ;;
+        aarch64|arm64)  yq_arch="arm64" ;;
+        armv7l|armhf)   yq_arch="arm" ;;
+        *)              yq_arch="amd64" ;;
+    esac
+    local url="https://github.com/mikefarah/yq/releases/latest/download/yq_linux_${yq_arch}"
+    local tmp="/tmp/yq.$$"
+    if ! wget -q -O "$tmp" "$url"; then rm -f "$tmp"; return 1; fi
+    if ! head -c 4 "$tmp" | grep -q "ELF"; then rm -f "$tmp"; return 1; fi
+    chmod +x "$tmp" || { rm -f "$tmp"; return 1; }
+    mv -f "$tmp" /usr/bin/yq || { rm -f "$tmp"; return 1; }
+    /usr/bin/yq --version >/dev/null 2>&1 || return 1
+    return 0
+}
+
+preflight_dependency_update() {
+    # better-fork: показать версии управляемых зависимостей и предложить точечно обновить их (y/n).
+    local docker_preexisting="${1:-0}"
+    local pkgs="${REVERSE_PKGS:-}"
+
+    echo -e ""
+    echo -e "${COLOR_YELLOW}${LANG[DEPS_VERSIONS_TITLE]}${COLOR_RESET}"
+    local _p _v
+    for _p in curl jq openssl certbot python3-certbot-dns-cloudflare ufw unzip git; do
+        _v=$(dpkg-query -W -f='${Version}' "$_p" 2>/dev/null)
+        printf "  %-32s %s\n" "$_p" "${_v:-${LANG[DEPS_NOT_INSTALLED]}}"
+    done
+    command -v docker >/dev/null 2>&1 && printf "  %-32s %s\n" "docker" "$(docker --version 2>/dev/null | sed 's/,.*//')"
+    docker compose version >/dev/null 2>&1 && printf "  %-32s %s\n" "docker compose" "$(docker compose version --short 2>/dev/null)"
+    command -v yq >/dev/null 2>&1 && printf "  %-32s %s\n" "yq" "$(yq --version 2>/dev/null)"
+
+    local _upg
+    _upg=$(apt-get -s install --only-upgrade $pkgs 2>/dev/null | awk '/^Inst /{printf "%s ", $2}')
+
+    if [ -z "$_upg" ] && [ "$docker_preexisting" -ne 1 ]; then
+        echo -e "${COLOR_GREEN}${LANG[DEPS_UP_TO_DATE]}${COLOR_RESET}"
+        return 0
+    fi
+
+    if [ -n "$_upg" ]; then
+        echo -e "${COLOR_YELLOW}${LANG[DEPS_UPDATES_AVAILABLE]}${COLOR_RESET}"
+        echo -e "${COLOR_WHITE}  $_upg${COLOR_RESET}"
+    fi
+
+    reading "${LANG[DEPS_UPDATE_PROMPT]}" _ans
+    if [[ ! "$_ans" =~ ^[Yy]$ ]]; then
+        echo -e "${COLOR_YELLOW}${LANG[DEPS_UPDATE_SKIPPED]}${COLOR_RESET}"
+        return 0
+    fi
+
+    echo -e "${COLOR_YELLOW}${LANG[DEPS_UPDATING]}${COLOR_RESET}"
+    if [ -n "$_upg" ]; then
+        apt-get install --only-upgrade -y $pkgs || echo -e "${COLOR_RED}${LANG[ERROR_INSTALL_PACKAGES]}${COLOR_RESET}" >&2
+    fi
+    if [ "$docker_preexisting" -eq 1 ]; then
+        if curl -fsSL https://get.docker.com -o /tmp/get-docker.sh; then
+            sh /tmp/get-docker.sh || echo -e "${COLOR_RED}${LANG[ERROR_INSTALL_DOCKER]}${COLOR_RESET}" >&2
+        fi
+    fi
+    if command -v yq >/dev/null 2>&1; then
+        install_or_update_yq update || echo -e "${COLOR_RED}${LANG[ERROR_DOWNLOADING_YQ]}${COLOR_RESET}" >&2
+    fi
+    echo -e "${COLOR_GREEN}${LANG[DEPS_UPDATED]}${COLOR_RESET}"
+    return 0
+}
+
 install_packages() {
     echo -e "${COLOR_YELLOW}${LANG[INSTALL_PACKAGES]}${COLOR_RESET}"
 
@@ -1374,9 +1442,18 @@ install_packages() {
         return 1
     fi
 
-    if ! apt-get install -y ca-certificates curl jq ufw wget gnupg unzip nano dialog git certbot python3-certbot-dns-cloudflare unattended-upgrades locales dnsutils coreutils grep gawk python3-pip; then
-        echo -e "${COLOR_RED}${LANG[ERROR_INSTALL_PACKAGES]}${COLOR_RESET}" >&2
-        return 1
+    REVERSE_PKGS="ca-certificates curl jq ufw wget gnupg unzip nano dialog git certbot python3-certbot-dns-cloudflare unattended-upgrades locales dnsutils coreutils grep gawk python3-pip openssl"
+    local _docker_preexisting=0
+    command -v docker >/dev/null 2>&1 && _docker_preexisting=1
+
+    # better-fork: ставим ТОЛЬКО недостающее (не апгрейдим молча); обновление — отдельным y/n ниже.
+    local _missing=""
+    for _p in $REVERSE_PKGS; do dpkg -s "$_p" >/dev/null 2>&1 || _missing="$_missing $_p"; done
+    if [ -n "$_missing" ]; then
+        if ! apt-get install -y $_missing; then
+            echo -e "${COLOR_RED}${LANG[ERROR_INSTALL_PACKAGES]}${COLOR_RESET}" >&2
+            return 1
+        fi
     fi
 
     if ! dpkg -l | grep -q '^ii.*cron '; then
@@ -1436,6 +1513,9 @@ install_packages() {
         echo -e "${COLOR_RED}${LANG[ERROR_DOCKER_NOT_WORKING]}${COLOR_RESET}" >&2
         return 1
     fi
+
+    # better-fork: показать версии и предложить обновить управляемые зависимости (точечно, y/n)
+    preflight_dependency_update "$_docker_preexisting"
 
     # BBR
     if ! grep -q "net.core.default_qdisc = fq" /etc/sysctl.conf; then
@@ -1707,22 +1787,30 @@ EOL
             # Gcore DNS-01 (wildcard)
 
             if ! certbot plugins 2>/dev/null | grep -q "dns-gcore"; then
-                echo -e "${COLOR_YELLOW}Installing certbot-dns-gcore plugin...${COLOR_RESET}"
-                
-                if python3 -m pip install --help 2>&1 | grep -q "break-system-packages"; then
-                    python3 -m pip install --break-system-packages certbot-dns-gcore >/dev/null 2>&1
-                else
-                python3 -m pip install certbot-dns-gcore >/dev/null 2>&1
+                echo -e "${COLOR_YELLOW}${LANG[INSTALLING_GCORE_PLUGIN]}${COLOR_RESET}"
+
+                if ! command -v pip3 >/dev/null 2>&1 && ! python3 -m pip --version >/dev/null 2>&1; then
+                    apt-get install -y python3-pip >/dev/null 2>&1
                 fi
-                    
+
+                local _pip_flags=""
+                if python3 -m pip install --help 2>&1 | grep -q -- "--break-system-packages"; then
+                    _pip_flags="--break-system-packages"
+                fi
+
+                if ! python3 -m pip install $_pip_flags certbot-dns-gcore; then
+                    echo -e "${COLOR_RED}${LANG[ERROR_INSTALL_GCORE_PLUGIN]}${COLOR_RESET}"
+                    exit 1
+                fi
+
                 if certbot plugins 2>/dev/null | grep -q "dns-gcore"; then
-                    echo -e "${COLOR_GREEN}Plugin installed successfully.${COLOR_RESET}"
+                    echo -e "${COLOR_GREEN}${LANG[GCORE_PLUGIN_INSTALLED]}${COLOR_RESET}"
                 else
                     echo -e "${COLOR_RED}${LANG[ERROR_INSTALL_GCORE_PLUGIN]}${COLOR_RESET}"
                     exit 1
                 fi
             else
-                echo -e "${COLOR_GREEN}Gcore plugin already available.${COLOR_RESET}"
+                echo -e "${COLOR_GREEN}${LANG[GCORE_PLUGIN_AVAILABLE]}${COLOR_RESET}"
             fi
 
             reading "${LANG[ENTER_GCORE_TOKEN]}" GCORE_API_KEY
@@ -2233,7 +2321,7 @@ handle_certificates() {
 
     local cron_command
     if [ "$cert_method" == "2" ]; then
-        cron_command="ufw allow 80 && /usr/bin/certbot renew --quiet && ufw delete allow 80 && ufw reload && cd $target_dir && docker compose down && docker compose up"
+        cron_command="ufw allow 80/tcp > /dev/null 2>&1; /usr/bin/certbot renew --quiet; ufw delete allow 80/tcp > /dev/null 2>&1; ufw reload > /dev/null 2>&1"
     else
         cron_command="/usr/bin/certbot renew --quiet"
     fi
@@ -2268,7 +2356,7 @@ load_module() {
     local module_name="$1"
     local module_type="${2:-modules}"
     local module_file="${DIR_REMNAWAVE}${module_type}/${module_name}.sh"
-    local module_url="https://raw.githubusercontent.com/eGamesAPI/remnawave-reverse-proxy/refs/heads/main/src/${module_type}/${module_name}.sh"
+    local module_url="https://raw.githubusercontent.com/Mrvibecodic/better-remnawave-reverse-proxy/refs/heads/main/src/${module_type}/${module_name}.sh"
     local force_update="${3:-false}"
 
     if [ "$force_update" = "true" ] || [ ! -f "$module_file" ]; then

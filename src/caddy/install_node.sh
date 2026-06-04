@@ -143,38 +143,95 @@ installation_node_caddy() {
     echo -e "${COLOR_YELLOW}${LANG[INSTALLING_NODE]}${COLOR_RESET}"
     install_node_caddy
 
-    ufw allow 80/tcp comment 'HTTP' > /dev/null 2>&1
-    ufw allow from $PANEL_IP to any port 2222 > /dev/null 2>&1
-    ufw reload > /dev/null 2>&1
+    # Открываем NODE_PORT только для IP панели. Если ufw не активен — предупреждаем.
+    if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q "Status: active"; then
+        ufw allow 80/tcp comment 'HTTP' > /dev/null 2>&1
+        ufw allow from $PANEL_IP to any port 2222 > /dev/null 2>&1
+        ufw reload > /dev/null 2>&1
+    else
+        echo -e "${COLOR_RED}$(printf "${LANG[NODE_UFW_INACTIVE]}" "$PANEL_IP")${COLOR_RESET}"
+    fi
+
+    # Публичный IP этого (нод-) сервера — нужен, чтобы человек правильно завёл ноду в панели.
+    local NODE_IP=$(curl -s --max-time 5 https://api.ipify.org 2>/dev/null)
+    [ -z "$NODE_IP" ] && NODE_IP=$(ip route get 1.1.1.1 2>/dev/null | awk '{print $7; exit}')
+    [ -z "$NODE_IP" ] && NODE_IP="<IP этого сервера>"
+
+    echo -e ""
+    echo -e "${COLOR_YELLOW}=================================================${COLOR_RESET}"
+    echo -e "${COLOR_YELLOW}${LANG[NODE_PREREQ_TITLE]}${COLOR_RESET}"
+    printf  "${COLOR_WHITE}${LANG[NODE_PREREQ_1]}${COLOR_RESET}\n" "$NODE_IP"
+    echo -e "${COLOR_WHITE}${LANG[NODE_PREREQ_2]}${COLOR_RESET}"
+    printf  "${COLOR_WHITE}${LANG[NODE_PREREQ_3]}${COLOR_RESET}\n" "2222" "$PANEL_IP"
+    printf  "${COLOR_WHITE}${LANG[NODE_PREREQ_4]}${COLOR_RESET}\n" "$SELFSTEAL_DOMAIN" "$NODE_IP"
+    echo -e "${COLOR_RED}${LANG[NODE_PREREQ_NOTE]}${COLOR_RESET}"
+    echo -e "${COLOR_YELLOW}=================================================${COLOR_RESET}"
+    echo -e ""
 
     echo -e "${COLOR_YELLOW}${LANG[STARTING_NODE]}${COLOR_RESET}"
     sleep 3
     cd /opt/remnanode
-    docker compose up -d > /dev/null 2>&1 &
 
-    spinner $! "${LANG[WAITING]}"
+    local node_up_log="${DIR_REMNAWAVE}node_up.log"
+    if ! docker compose up -d > "$node_up_log" 2>&1; then
+        echo -e "${COLOR_RED}${LANG[NODE_COMPOSE_FAILED]}${COLOR_RESET}"
+        tail -n 20 "$node_up_log"
+        exit 1
+    fi
 
     randomhtml
+
+    sleep 5
+    local node_running
+    node_running=$(docker inspect -f '{{.State.Running}}' remnanode 2>/dev/null)
+    if [ "$node_running" != "true" ]; then
+        echo -e "${COLOR_RED}${LANG[NODE_CONTAINER_CRASH]}${COLOR_RESET}"
+        docker logs --tail 20 remnanode 2>&1
+        echo -e "${COLOR_YELLOW}${LANG[CHECK_CONFIG]}${COLOR_RESET}"
+        exit 1
+    fi
 
     printf "${COLOR_YELLOW}${LANG[NODE_CHECK]}${COLOR_RESET}\n" "$SELFSTEAL_DOMAIN"
     local max_attempts=5
     local attempt=1
     local delay=15
+    local serving=false
 
     while [ $attempt -le $max_attempts ]; do
         printf "${COLOR_YELLOW}${LANG[NODE_ATTEMPT]}${COLOR_RESET}\n" "$attempt" "$max_attempts"
         if curl -s --fail --max-time 10 "https://$SELFSTEAL_DOMAIN" | grep -q "html"; then
-            echo -e "${COLOR_GREEN}${LANG[NODE_LAUNCHED]}${COLOR_RESET}"
+            serving=true
             break
-        else
-            printf "${COLOR_RED}${LANG[NODE_UNAVAILABLE]}${COLOR_RESET}\n" "$attempt"
-            if [ $attempt -eq $max_attempts ]; then
-                printf "${COLOR_RED}${LANG[NODE_NOT_CONNECTED]}${COLOR_RESET}\n" "$max_attempts"
-                echo -e "${COLOR_YELLOW}${LANG[CHECK_CONFIG]}${COLOR_RESET}"
-                exit 1
-            fi
-            sleep $delay
         fi
-        ((attempt++))
+        printf "${COLOR_RED}${LANG[NODE_UNAVAILABLE]}${COLOR_RESET}\n" "$attempt"
+        [ $attempt -lt $max_attempts ] && sleep $delay
+        attempt=$((attempt + 1))
     done
+
+    if [ "$serving" = true ]; then
+        echo -e "${COLOR_GREEN}${LANG[NODE_LAUNCHED]}${COLOR_RESET}"
+        return 0
+    fi
+
+    local port443_busy=false
+    if command -v ss >/dev/null 2>&1; then
+        ss -ltnH 2>/dev/null | grep -q ':443 ' && port443_busy=true
+    fi
+
+    echo -e ""
+    echo -e "${COLOR_YELLOW}=================================================${COLOR_RESET}"
+    echo -e "${COLOR_YELLOW}${LANG[NODE_WAITING_CONFIG_TITLE]}${COLOR_RESET}"
+    if [ "$port443_busy" = true ]; then
+        printf "${COLOR_YELLOW}${LANG[NODE_PORT_LISTEN_YES]}${COLOR_RESET}\n" "$SELFSTEAL_DOMAIN"
+    else
+        echo -e "${COLOR_YELLOW}${LANG[NODE_WAITING_CONFIG_REASON]}${COLOR_RESET}"
+    fi
+    echo -e "${COLOR_WHITE}${LANG[NODE_WAITING_CHECK]}${COLOR_RESET}"
+    printf  "${COLOR_WHITE}${LANG[NODE_PREREQ_1]}${COLOR_RESET}\n" "$NODE_IP"
+    echo -e "${COLOR_WHITE}${LANG[NODE_PREREQ_2]}${COLOR_RESET}"
+    printf  "${COLOR_WHITE}${LANG[NODE_PREREQ_3]}${COLOR_RESET}\n" "2222" "$PANEL_IP"
+    printf  "${COLOR_WHITE}${LANG[NODE_PREREQ_4]}${COLOR_RESET}\n" "$SELFSTEAL_DOMAIN" "$NODE_IP"
+    printf  "${COLOR_GREEN}${LANG[NODE_RECHECK_HINT]}${COLOR_RESET}\n" "$SELFSTEAL_DOMAIN"
+    echo -e "${COLOR_YELLOW}=================================================${COLOR_RESET}"
+    return 0
 }

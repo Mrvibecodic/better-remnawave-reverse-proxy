@@ -93,10 +93,10 @@ start_panel_node() {
         dir="/opt/remnanode"
     else
         echo -e "${COLOR_RED}${LANG[DIR_NOT_FOUND]}${COLOR_RESET}"
-        exit 1
+        return 1
     fi
 
-    cd "$dir" || { echo -e "${COLOR_RED}${LANG[CHANGE_DIR_FAILED]} $dir${COLOR_RESET}"; exit 1; }
+    cd "$dir" || { echo -e "${COLOR_RED}${LANG[CHANGE_DIR_FAILED]} $dir${COLOR_RESET}"; return 1; }
 
     if docker ps -q --filter "ancestor=remnawave/backend:latest" | grep -q . || docker ps -q --filter "ancestor=remnawave/node:latest" | grep -q . || docker ps -q --filter "ancestor=remnawave/backend:2" | grep -q .; then
         echo -e "${COLOR_GREEN}${LANG[PANEL_RUNNING]}${COLOR_RESET}"
@@ -117,10 +117,10 @@ stop_panel_node() {
         dir="/opt/remnanode"
     else
         echo -e "${COLOR_RED}${LANG[DIR_NOT_FOUND]}${COLOR_RESET}"
-        exit 1
+        return 1
     fi
 
-    cd "$dir" || { echo -e "${COLOR_RED}${LANG[CHANGE_DIR_FAILED]} $dir${COLOR_RESET}"; exit 1; }
+    cd "$dir" || { echo -e "${COLOR_RED}${LANG[CHANGE_DIR_FAILED]} $dir${COLOR_RESET}"; return 1; }
     if ! docker ps -q --filter "ancestor=remnawave/backend:latest" | grep -q . && ! docker ps -q --filter "ancestor=remnawave/node:latest" | grep -q . && ! docker ps -q --filter "ancestor=remnawave/backend:2" | grep -q .; then
         echo -e "${COLOR_GREEN}${LANG[PANEL_STOPPED]}${COLOR_RESET}"
     else
@@ -140,10 +140,10 @@ update_panel_node() {
         dir="/opt/remnanode"
     else
         echo -e "${COLOR_RED}${LANG[DIR_NOT_FOUND]}${COLOR_RESET}"
-        exit 1
+        return 1
     fi
 
-    cd "$dir" || { echo -e "${COLOR_RED}${LANG[CHANGE_DIR_FAILED]} $dir${COLOR_RESET}"; exit 1; }
+    cd "$dir" || { echo -e "${COLOR_RED}${LANG[CHANGE_DIR_FAILED]} $dir${COLOR_RESET}"; return 1; }
     echo -e "${COLOR_YELLOW}${LANG[UPDATING]}${COLOR_RESET}"
     sleep 1
 
@@ -191,14 +191,14 @@ view_logs() {
         dir="/opt/remnanode"
     else
         echo -e "${COLOR_RED}${LANG[DIR_NOT_FOUND]}${COLOR_RESET}"
-        exit 1
+        return 1
     fi
 
-    cd "$dir" || { echo -e "${COLOR_RED}${LANG[CHANGE_DIR_FAILED]} $dir${COLOR_RESET}"; exit 1; }
+    cd "$dir" || { echo -e "${COLOR_RED}${LANG[CHANGE_DIR_FAILED]} $dir${COLOR_RESET}"; return 1; }
 
     if ! docker ps -q --filter "ancestor=remnawave/backend:latest" | grep -q . && ! docker ps -q --filter "ancestor=remnawave/node:latest" | grep -q . && ! docker ps -q --filter "ancestor=remnawave/backend:2" | grep -q .; then
         echo -e "${COLOR_RED}${LANG[CONTAINER_NOT_RUNNING]}${COLOR_RESET}"
-        exit 1
+        return 1
     fi
 
     echo -e "${COLOR_YELLOW}${LANG[VIEW_LOGS]}${COLOR_RESET}"
@@ -250,10 +250,10 @@ open_panel_access() {
         dir="/opt/remnanode"
     else
         echo -e "${COLOR_RED}${LANG[DIR_NOT_FOUND]}${COLOR_RESET}"
-        exit 1
+        return 1
     fi
 
-    cd "$dir" || { echo -e "${COLOR_RED}${LANG[CHANGE_DIR_FAILED]} $dir${COLOR_RESET}"; exit 1; }
+    cd "$dir" || { echo -e "${COLOR_RED}${LANG[CHANGE_DIR_FAILED]} $dir${COLOR_RESET}"; return 1; }
 
     local webserver=""
     if [ -f "nginx.conf" ]; then
@@ -262,7 +262,7 @@ open_panel_access() {
         webserver="caddy"
     else
         echo -e "${COLOR_RED}${LANG[CONFIG_NOT_FOUND]}${COLOR_RESET}"
-        exit 1
+        return 1
     fi
 
     if [ "$webserver" = "nginx" ]; then
@@ -274,29 +274,29 @@ open_panel_access() {
 
         if [ -z "$PANEL_DOMAIN" ] || [ -z "$cookies_random1" ] || [ -z "$cookies_random2" ]; then
             echo -e "${COLOR_RED}${LANG[NGINX_CONF_ERROR]}${COLOR_RESET}"
-            exit 1
+            return 1
         fi
 
         if command -v ss >/dev/null 2>&1; then
             if ss -tuln | grep -q ":8443"; then
                 echo -e "${COLOR_RED}${LANG[PORT_8443_IN_USE]}${COLOR_RESET}"
-                exit 1
+                return 1
             fi
         elif command -v netstat >/dev/null 2>&1; then
             if netstat -tuln | grep -q ":8443"; then
                 echo -e "${COLOR_RED}${LANG[PORT_8443_IN_USE]}${COLOR_RESET}"
-                exit 1
+                return 1
             fi
         else
             echo -e "${COLOR_RED}${LANG[NO_PORT_CHECK_TOOLS]}${COLOR_RESET}"
-            exit 1
+            return 1
         fi
 
         sed -i "/server_name $PANEL_DOMAIN;/,/}/{/^[[:space:]]*$/d; s/listen 8443 ssl;//}" "$dir/nginx.conf"
         sed -i "/server_name $PANEL_DOMAIN;/a \    listen 8443 ssl;" "$dir/nginx.conf"
         if [ $? -ne 0 ]; then
             echo -e "${COLOR_RED}${LANG[NGINX_CONF_MODIFY_FAILED]}${COLOR_RESET}"
-            exit 1
+            return 1
         fi
 
         docker compose down remnawave-nginx > /dev/null 2>&1 &
@@ -318,7 +318,7 @@ open_panel_access() {
 
         if [ -z "$PANEL_DOMAIN" ]; then
             echo -e "${COLOR_RED}${LANG[CADDY_CONF_ERROR]}${COLOR_RESET}"
-            exit 1
+            return 1
         fi
 
         if grep -q "https://{\$PANEL_DOMAIN}:8443 {" "$dir/Caddyfile"; then
@@ -329,16 +329,16 @@ open_panel_access() {
         if command -v ss >/dev/null 2>&1; then
             if ss -tuln | grep -q ":8443"; then
                 echo -e "${COLOR_RED}${LANG[PORT_8443_IN_USE]}${COLOR_RESET}"
-                exit 1
+                return 1
             fi
         elif command -v netstat >/dev/null 2>&1; then
             if netstat -tuln | grep -q ":8443"; then
                 echo -e "${COLOR_RED}${LANG[PORT_8443_IN_USE]}${COLOR_RESET}"
-                exit 1
+                return 1
             fi
         else
             echo -e "${COLOR_RED}${LANG[NO_PORT_CHECK_TOOLS]}${COLOR_RESET}"
-            exit 1
+            return 1
         fi
 
         sed -i "s|redir https://{\$PANEL_DOMAIN}{uri} permanent|redir https://{\$PANEL_DOMAIN}:8443{uri} permanent|g" "$dir/Caddyfile"
@@ -378,10 +378,10 @@ close_panel_access() {
         dir="/opt/remnanode"
     else
         echo -e "${COLOR_RED}${LANG[DIR_NOT_FOUND]}${COLOR_RESET}"
-        exit 1
+        return 1
     fi
 
-    cd "$dir" || { echo -e "${COLOR_RED}${LANG[CHANGE_DIR_FAILED]} $dir${COLOR_RESET}"; exit 1; }
+    cd "$dir" || { echo -e "${COLOR_RED}${LANG[CHANGE_DIR_FAILED]} $dir${COLOR_RESET}"; return 1; }
 
     echo -e "${COLOR_YELLOW}${LANG[PORT_8443_CLOSE]}${COLOR_RESET}"
 
@@ -392,7 +392,7 @@ close_panel_access() {
         webserver="caddy"
     else
         echo -e "${COLOR_RED}${LANG[CONFIG_NOT_FOUND]}${COLOR_RESET}"
-        exit 1
+        return 1
     fi
 
     if [ "$webserver" = "nginx" ]; then
@@ -400,14 +400,14 @@ close_panel_access() {
 
         if [ -z "$PANEL_DOMAIN" ]; then
             echo -e "${COLOR_RED}${LANG[NGINX_CONF_ERROR]}${COLOR_RESET}"
-            exit 1
+            return 1
         fi
 
         if grep -A 10 "server_name $PANEL_DOMAIN;" "$dir/nginx.conf" | grep -q "listen 8443 ssl;"; then
             sed -i "/server_name $PANEL_DOMAIN;/,/}/{/^[[:space:]]*$/d; s/listen 8443 ssl;//}" "$dir/nginx.conf"
             if [ $? -ne 0 ]; then
                 echo -e "${COLOR_RED}${LANG[NGINX_CONF_MODIFY_FAILED]}${COLOR_RESET}"
-                exit 1
+                return 1
             fi
 
             docker compose down remnawave-nginx > /dev/null 2>&1 &
@@ -423,7 +423,7 @@ close_panel_access() {
             ufw reload > /dev/null 2>&1
             if [ $? -ne 0 ]; then
                 echo -e "${COLOR_RED}${LANG[UFW_RELOAD_FAILED]}${COLOR_RESET}"
-                exit 1
+                return 1
             fi
             echo -e "${COLOR_GREEN}${LANG[PORT_8443_CLOSED]}${COLOR_RESET}"
         else
@@ -434,7 +434,7 @@ close_panel_access() {
 
         if [ -z "$PANEL_DOMAIN" ]; then
             echo -e "${COLOR_RED}${LANG[CADDY_CONF_ERROR]}${COLOR_RESET}"
-            exit 1
+            return 1
         fi
 
         if grep -q "https://{\$PANEL_DOMAIN}:8443 {" "$dir/Caddyfile"; then
@@ -457,7 +457,7 @@ close_panel_access() {
             ufw reload > /dev/null 2>&1
             if [ $? -ne 0 ]; then
                 echo -e "${COLOR_RED}${LANG[UFW_RELOAD_FAILED]}${COLOR_RESET}"
-                exit 1
+                return 1
             fi
             echo -e "${COLOR_GREEN}${LANG[PORT_8443_CLOSED]}${COLOR_RESET}"
         else

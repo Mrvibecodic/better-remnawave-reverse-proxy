@@ -16,7 +16,8 @@ show_template_source_options() {
 randomhtml() {
     local template_source="$1"
 
-    cd /opt/ || { echo "${LANG[UNPACK_ERROR]}"; exit 1; }
+    # better-fork: return вместо exit — провал шаблона не должен убивать весь установщик.
+    cd /opt/ || { echo -e "${LANG[UNPACK_ERROR]}"; return 1; }
 
     rm -f main.zip 2>/dev/null
     rm -rf simple-web-templates-main/ sni-templates-main/ nothing-sni-main/ 2>/dev/null
@@ -25,6 +26,10 @@ randomhtml() {
     sleep 1
     spinner $$ "${LANG[WAITING]}" &
     spinner_pid=$!
+
+    # better-fork: единая остановка спиннера на ЛЮБОМ пути выхода (раньше exit'ы оставляли
+    # спиннер висеть, т.к. до ручного kill дело не доходило).
+    stop_spinner() { kill "$spinner_pid" 2>/dev/null; wait "$spinner_pid" 2>/dev/null; }
 
     template_urls=(
         "https://github.com/eGamesAPI/simple-web-templates/archive/refs/heads/main.zip"
@@ -46,22 +51,32 @@ randomhtml() {
         fi
     fi
 
-    while ! wget -q --timeout=30 --tries=10 --retry-connrefused "$selected_url"; do
+    # better-fork: ограниченное число попыток вместо бесконечного цикла (раньше при недоступном
+    # GitHub установка зависала навсегда).
+    local dl_attempt=0
+    local dl_max=10
+    until wget -q --timeout=30 --tries=3 --retry-connrefused "$selected_url"; do
+        dl_attempt=$((dl_attempt + 1))
+        if [ "$dl_attempt" -ge "$dl_max" ]; then
+            stop_spinner
+            echo -e "${COLOR_RED}${LANG[DOWNLOAD_FAIL]}${COLOR_RESET}"
+            return 1
+        fi
         echo "${LANG[DOWNLOAD_FAIL]}"
         sleep 3
     done
 
-    unzip -o main.zip &>/dev/null || { echo "${LANG[UNPACK_ERROR]}"; exit 0; }
+    unzip -o main.zip &>/dev/null || { stop_spinner; echo -e "${LANG[UNPACK_ERROR]}"; return 1; }
     rm -f main.zip
 
     if [[ "$selected_url" == *"eGamesAPI"* ]]; then
-        cd simple-web-templates-main/ || { echo "${LANG[UNPACK_ERROR]}"; exit 0; }
+        cd simple-web-templates-main/ || { stop_spinner; echo -e "${LANG[UNPACK_ERROR]}"; return 1; }
         rm -rf assets ".gitattributes" "README.md" "_config.yml" 2>/dev/null
     elif [[ "$selected_url" == *"nothing-sni"* ]]; then
-        cd nothing-sni-main/ || { echo "${LANG[UNPACK_ERROR]}"; exit 0; }
+        cd nothing-sni-main/ || { stop_spinner; echo -e "${LANG[UNPACK_ERROR]}"; return 1; }
         rm -rf .github README.md 2>/dev/null
     else
-        cd sni-templates-main/ || { echo "${LANG[UNPACK_ERROR]}"; exit 0; }
+        cd sni-templates-main/ || { stop_spinner; echo -e "${LANG[UNPACK_ERROR]}"; return 1; }
         rm -rf assets "README.md" "index.html" 2>/dev/null
     fi
 
@@ -73,11 +88,18 @@ randomhtml() {
     else
         mapfile -t templates < <(find . -maxdepth 1 -type d -not -path . | sed 's|./||')
 
+        # better-fork: защита от деления на ноль, если структура репозитория шаблонов изменилась.
+        if [ ${#templates[@]} -eq 0 ]; then
+            stop_spinner
+            echo -e "${COLOR_RED}${LANG[UNPACK_ERROR]}${COLOR_RESET}"
+            return 1
+        fi
+
         RandomHTML="${templates[$RANDOM % ${#templates[@]}]}"
     fi
 
     if [[ "$selected_url" == *"distillium"* && "$RandomHTML" == "503 error pages" ]]; then
-        cd "$RandomHTML" || { echo "${LANG[UNPACK_ERROR]}"; exit 0; }
+        cd "$RandomHTML" || { stop_spinner; echo -e "${LANG[UNPACK_ERROR]}"; return 1; }
         versions=("v1" "v2")
         RandomVersion="${versions[$RANDOM % ${#versions[@]}]}"
         RandomHTML="$RandomHTML/$RandomVersion"
@@ -120,15 +142,14 @@ randomhtml() {
         -e "1i.$random_class { display: block; }" \
         {} \;
 
-    kill "$spinner_pid" 2>/dev/null
-    wait "$spinner_pid" 2>/dev/null
-    printf "\r\033[K" > /dev/tty
+    stop_spinner
+    printf "\r\033[K" > /dev/tty 2>/dev/null
 
     echo "${LANG[SELECT_TEMPLATE]}" "${RandomHTML}"
 
     if [[ -d "${RandomHTML}" ]]; then
         if [[ ! -d "/var/www/html/" ]]; then
-            mkdir -p "/var/www/html/" || { echo "Failed to create /var/www/html/"; exit 1; }
+            mkdir -p "/var/www/html/" || { echo "Failed to create /var/www/html/"; return 1; }
         fi
         rm -rf /var/www/html/*
         cp -a "${RandomHTML}"/. "/var/www/html/"
@@ -137,7 +158,8 @@ randomhtml() {
         cp "${RandomHTML}" "/var/www/html/index.html"
         echo "${LANG[TEMPLATE_COPY]}"
     else
-        echo "${LANG[UNPACK_ERROR]}" && exit 1
+        echo "${LANG[UNPACK_ERROR]}"
+        return 1
     fi
 
     if ! find "/var/www/html" -type f -name "*.html" -exec grep -q "$random_meta_name" {} \; 2>/dev/null; then
