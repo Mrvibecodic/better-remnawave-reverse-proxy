@@ -200,6 +200,9 @@ EOL
     if ! docker compose up -d > "$node_up_log" 2>&1; then
         echo -e "${COLOR_RED}${LANG[NODE_COMPOSE_FAILED]}${COLOR_RESET}"
         tail -n 20 "$node_up_log"
+        if grep -qiE 'toomanyrequests|pull rate limit|rate limit|429 Too Many' "$node_up_log"; then
+            echo -e "${COLOR_YELLOW}${LANG[DOCKER_RATE_LIMIT_HINT]}${COLOR_RESET}"
+        fi
         exit 1
     fi
 

@@ -1363,6 +1363,73 @@ show_custom_legiz_menu() {
     echo -e ""
 }
 
+configure_docker_mirror() {
+    # better-fork: опционально настроить зеркало реестра Docker (помогает с лимитами Docker Hub
+    # и блокировками). Пишем registry-mirrors в /etc/docker/daemon.json с бэкапом и откатом.
+    local _dm_ans _url
+    reading "${LANG[DOCKER_MIRROR_PROMPT]}" _dm_ans
+    [[ "$_dm_ans" =~ ^[Yy]$ ]] || return 0
+
+    local default_mirror="https://mirror.gcr.io"
+    reading "$(printf "${LANG[DOCKER_MIRROR_ENTER]}" "$default_mirror")" _url
+    _url="${_url:-$default_mirror}"
+    if [[ ! "$_url" =~ ^https?:// ]]; then
+        echo -e "${COLOR_RED}${LANG[DOCKER_MIRROR_INVALID]}${COLOR_RESET}"
+        return 1
+    fi
+
+    mkdir -p /etc/docker
+    local f="/etc/docker/daemon.json"
+    local bak=""
+    if [ -f "$f" ]; then bak="${f}.bak.$(date +%s)"; cp -f "$f" "$bak"; fi
+
+    if command -v jq >/dev/null 2>&1 && [ -s "$f" ] && jq -e . "$f" >/dev/null 2>&1; then
+        local tmp; tmp=$(mktemp)
+        if jq --arg m "$_url" '. + {"registry-mirrors": [$m]}' "$f" > "$tmp" 2>/dev/null; then
+            mv "$tmp" "$f"
+        else
+            rm -f "$tmp"
+            printf '{\n  "registry-mirrors": ["%s"]\n}\n' "$_url" > "$f"
+        fi
+    else
+        printf '{\n  "registry-mirrors": ["%s"]\n}\n' "$_url" > "$f"
+    fi
+
+    echo -e "${COLOR_YELLOW}${LANG[DOCKER_MIRROR_APPLYING]}${COLOR_RESET}"
+    if systemctl restart docker && docker info >/dev/null 2>&1; then
+        printf "${COLOR_GREEN}${LANG[DOCKER_MIRROR_OK]}${COLOR_RESET}\n" "$_url"
+        return 0
+    fi
+
+    # откат при неудаче
+    if [ -n "$bak" ] && [ -f "$bak" ]; then cp -f "$bak" "$f"; else rm -f "$f"; fi
+    systemctl restart docker >/dev/null 2>&1
+    echo -e "${COLOR_RED}${LANG[DOCKER_MIRROR_FAILED]}${COLOR_RESET}"
+    return 1
+}
+
+compose_up() {
+    # better-fork: docker compose up с перехватом вывода и понятной ошибкой,
+    # включая детект лимита Docker Hub (toomanyrequests) — раньше вывод уходил в /dev/null.
+    local dir="${1:-.}"
+    local logf="${DIR_REMNAWAVE}docker_up.log"
+    mkdir -p "${DIR_REMNAWAVE}" 2>/dev/null
+    ( cd "$dir" && docker compose up -d ) > "$logf" 2>&1 &
+    local _pid=$!
+    spinner "$_pid" "${LANG[WAITING]}"
+    wait "$_pid"
+    local _rc=$?
+    if [ "$_rc" -ne 0 ]; then
+        echo -e "${COLOR_RED}${LANG[DOCKER_UP_FAILED]}${COLOR_RESET}"
+        tail -n 25 "$logf"
+        if grep -qiE 'toomanyrequests|pull rate limit|rate limit|429 Too Many' "$logf"; then
+            echo -e "${COLOR_YELLOW}${LANG[DOCKER_RATE_LIMIT_HINT]}${COLOR_RESET}"
+        fi
+        return 1
+    fi
+    return 0
+}
+
 install_or_update_yq() {
     # better-fork: детект архитектуры (раньше был жёстко amd64 → ломалось на ARM) + валидация ELF.
     local arch yq_arch
@@ -1513,6 +1580,9 @@ install_packages() {
         echo -e "${COLOR_RED}${LANG[ERROR_DOCKER_NOT_WORKING]}${COLOR_RESET}" >&2
         return 1
     fi
+
+    # better-fork: предложить зеркало Docker (лимиты Docker Hub / блокировки)
+    configure_docker_mirror
 
     # better-fork: показать версии и предложить обновить управляемые зависимости (точечно, y/n)
     preflight_dependency_update "$_docker_preexisting"

@@ -429,9 +429,10 @@ installation_panel_node_caddy() {
     sleep 1
     cd /opt/remnawave
     ufw allow 80/tcp comment 'HTTP' > /dev/null 2>&1
-    docker compose up -d > /dev/null 2>&1 &
-
-    spinner $! "${LANG[WAITING]}"
+    if ! compose_up; then
+        printf "${COLOR_RED}${LANG[INSTALL_STEP_FAILED]}${COLOR_RESET}\n" "${DIR_REMNAWAVE}docker_up.log"
+        exit 1
+    fi
 
     remnawave_network_subnet=172.30.0.0/16
     ufw allow from "$remnawave_network_subnet" to any port 2222 proto tcp > /dev/null 2>&1
@@ -525,8 +526,10 @@ installation_panel_node_caddy() {
 
     echo -e "${COLOR_YELLOW}${LANG[STARTING_PANEL_NODE]}${COLOR_RESET}"
     sleep 1
-    docker compose up -d > /dev/null 2>&1 &
-    spinner $! "${LANG[WAITING]}"
+    if ! compose_up; then
+        printf "${COLOR_RED}${LANG[INSTALL_STEP_FAILED]}${COLOR_RESET}\n" "${DIR_REMNAWAVE}docker_up.log"
+        exit 1
+    fi
 
     clear
 

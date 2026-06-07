@@ -46,6 +46,7 @@ Everything from the original, plus:
 | **Security** | Per‑install random `WEBHOOK_SECRET_HEADER` and PostgreSQL password (no shared hardcoded secrets); `chmod 600` on `.env` and `docker-compose.yml`. |
 | **Certificate cron** | No more weekly panel downtime — nginx restarts **only on a real renewal** (certbot `renew_hook`). |
 | **Dependencies** | Preflight that shows installed versions and offers a single **y/n** to update managed packages + Docker; `openssl` ensured; **arch‑aware** `yq` (amd64/arm64) with download validation; clearer `certbot-dns-gcore` (pip) errors. |
+| **Docker pulls** | `docker compose` failures are shown (incl. **Docker Hub rate limits**) instead of going to `/dev/null`; optional **registry‑mirror** prompt routes pulls around limits/blocks. |
 | **Robustness** | Stable locale via `LC_ALL`; fixed inherited bugs — WARP config validation before PATCH, selfsteal spinner/exit handling, `exit`→`return` in menu functions, safer IPv6 handling. |
 
 A detailed, itemized changelog is kept by the author together with the project notes.

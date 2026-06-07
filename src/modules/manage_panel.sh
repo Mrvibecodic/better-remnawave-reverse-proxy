@@ -103,8 +103,7 @@ start_panel_node() {
     else
         echo -e "${COLOR_YELLOW}${LANG[STARTING_PANEL_NODE]}...${COLOR_RESET}"
         sleep 1
-        docker compose up -d > /dev/null 2>&1 &
-        spinner $! "${LANG[WAITING]}"
+        if ! compose_up "$dir"; then return 1; fi
         echo -e "${COLOR_GREEN}${LANG[PANEL_RUN]}${COLOR_RESET}"
     fi
 }
@@ -158,6 +157,9 @@ update_panel_node() {
     docker compose pull > "$tmpfile" 2>&1 &
     spinner $! "${LANG[WAITING]}"
     pull_output=$(cat "$tmpfile")
+    if echo "$pull_output" | grep -qiE 'toomanyrequests|pull rate limit|rate limit|429 Too Many'; then
+        echo -e "${COLOR_YELLOW}${LANG[DOCKER_RATE_LIMIT_HINT]}${COLOR_RESET}"
+    fi
     rm -f "$tmpfile"
 
     images_after=$(docker compose config --images | sort -u)
@@ -173,8 +175,7 @@ update_panel_node() {
         docker compose down > /dev/null 2>&1 &
         spinner $! "${LANG[WAITING]}"
         sleep 5
-        docker compose up -d > /dev/null 2>&1 &
-        spinner $! "${LANG[WAITING]}"
+        if ! compose_up "$dir"; then return 1; fi
         sleep 1
         docker image prune -f > /dev/null 2>&1
         echo -e "${COLOR_GREEN}${LANG[UPDATE_SUCCESS1]}${COLOR_RESET}"

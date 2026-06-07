@@ -460,3 +460,13 @@ LANG[DEPS_UPDATED]="Dependencies updated."
 LANG[INSTALLING_GCORE_PLUGIN]="Installing certbot-dns-gcore plugin..."
 LANG[GCORE_PLUGIN_INSTALLED]="Gcore plugin installed successfully."
 LANG[GCORE_PLUGIN_AVAILABLE]="Gcore plugin already available."
+#better-fork: docker bring-up visibility
+LANG[DOCKER_UP_FAILED]="Failed to start containers (docker compose). Last log lines:"
+LANG[DOCKER_RATE_LIMIT_HINT]="This looks like a Docker Hub pull rate limit. Run 'docker login' (authenticated pulls have higher limits) or wait ~6h and re-run; optionally configure a registry mirror."
+#better-fork: docker registry mirror
+LANG[DOCKER_MIRROR_PROMPT]="Configure a Docker registry mirror (helps with Docker Hub rate limits / blocks)? [y/N]: "
+LANG[DOCKER_MIRROR_ENTER]="Enter mirror URL [default: %s]: "
+LANG[DOCKER_MIRROR_INVALID]="Invalid mirror URL (must start with http:// or https://)."
+LANG[DOCKER_MIRROR_APPLYING]="Applying Docker mirror and restarting Docker..."
+LANG[DOCKER_MIRROR_OK]="Docker registry mirror configured: %s"
+LANG[DOCKER_MIRROR_FAILED]="Failed to apply the Docker mirror — reverted to the previous config."

@@ -455,3 +455,13 @@ LANG[DEPS_UPDATED]="Зависимости обновлены."
 LANG[INSTALLING_GCORE_PLUGIN]="Установка плагина certbot-dns-gcore..."
 LANG[GCORE_PLUGIN_INSTALLED]="Плагин Gcore успешно установлен."
 LANG[GCORE_PLUGIN_AVAILABLE]="Плагин Gcore уже доступен."
+#better-fork: видимость ошибок подъёма docker
+LANG[DOCKER_UP_FAILED]="Не удалось запустить контейнеры (docker compose). Последние строки лога:"
+LANG[DOCKER_RATE_LIMIT_HINT]="Похоже на лимит загрузок Docker Hub. Выполните 'docker login' (у авторизованных лимит выше) или подождите ~6 часов и повторите; можно настроить зеркало реестра."
+#better-fork: зеркало реестра docker
+LANG[DOCKER_MIRROR_PROMPT]="Настроить зеркало реестра Docker (помогает с лимитами Docker Hub / блокировками)? [y/N]: "
+LANG[DOCKER_MIRROR_ENTER]="Введите URL зеркала [по умолчанию: %s]: "
+LANG[DOCKER_MIRROR_INVALID]="Неверный URL зеркала (должен начинаться с http:// или https://)."
+LANG[DOCKER_MIRROR_APPLYING]="Применяю зеркало Docker и перезапускаю Docker..."
+LANG[DOCKER_MIRROR_OK]="Зеркало реестра Docker настроено: %s"
+LANG[DOCKER_MIRROR_FAILED]="Не удалось применить зеркало Docker — откатил на прежнюю конфигурацию."

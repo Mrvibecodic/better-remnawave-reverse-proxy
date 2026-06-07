@@ -450,9 +450,10 @@ EOL
     echo -e "${COLOR_YELLOW}${LANG[STARTING_PANEL]}${COLOR_RESET}"
     sleep 1
     cd /opt/remnawave
-    docker compose up -d > /dev/null 2>&1 &
-
-    spinner $! "${LANG[WAITING]}"
+    if ! compose_up; then
+        printf "${COLOR_RED}${LANG[INSTALL_STEP_FAILED]}${COLOR_RESET}\n" "${DIR_REMNAWAVE}docker_up.log"
+        exit 1
+    fi
 
     local domain_url="127.0.0.1:3000"
     local target_dir="/opt/remnawave"
