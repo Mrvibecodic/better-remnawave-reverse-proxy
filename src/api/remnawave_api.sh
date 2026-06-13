@@ -343,8 +343,8 @@ create_config_profile() {
             ],
             routing: {
                 rules: [
-                    { ip: ["geoip:private"], type: "field", outboundTag: "BLOCK" },
-                    { type: "field", protocol: ["bittorrent"], outboundTag: "BLOCK" }
+                    { ip: ["geoip:private"], outboundTag: "BLOCK" },
+                    { protocol: ["bittorrent"], outboundTag: "BLOCK" }
                 ]
             }
         }

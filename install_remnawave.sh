@@ -32,7 +32,6 @@ download_with_mirrors() {
         "$file_url"
         "https://cdn.jsdelivr.net/gh/Mrvibecodic/better-remnawave-reverse-proxy@main/${file_url#*main/}"
         "https://raw.githack.com/Mrvibecodic/better-remnawave-reverse-proxy/main/${file_url#*main/}"
-        "https://ghproxy.com/${file_url}"
     )
     
     local temp_file="${dest_file}.tmp"
@@ -223,6 +222,7 @@ log_entry() {
 }
 
 update_remnawave_reverse() {
+    rm -f "${DIR_REMNAWAVE}update_check_cache" 2>/dev/null
     local remote_version=$(curl -s "$SCRIPT_URL" | grep -m 1 "SCRIPT_VERSION=" | sed -E 's/.*SCRIPT_VERSION="([^"]+)".*/\1/')
     local update_script="${DIR_REMNAWAVE}remnawave_reverse"
     local bin_link="/usr/local/bin/remnawave_reverse"
@@ -511,12 +511,27 @@ generate_password() {
 
 #Displaying the availability of the update in the menu
 check_update_status() {
+    # better-fork: кэш на 12 ч + таймауты — чтобы меню не висело на сетевой проверке обновления
+    # при каждом запуске (raw.githubusercontent может быть медленным/заблокированным).
+    local cache_file="${DIR_REMNAWAVE}update_check_cache"
+    local now; now=$(date +%s)
+    if [ -f "$cache_file" ]; then
+        local c_ts c_val
+        c_ts=$(sed -n '1p' "$cache_file" 2>/dev/null)
+        c_val=$(sed -n '2p' "$cache_file" 2>/dev/null)
+        if [[ "$c_ts" =~ ^[0-9]+$ ]] && [ $((now - c_ts)) -lt 43200 ]; then
+            UPDATE_AVAILABLE="${c_val:-false}"
+            return
+        fi
+    fi
+
     local TEMP_REMOTE_VERSION_FILE
     TEMP_REMOTE_VERSION_FILE=$(mktemp)
 
-    if ! curl -fsSL "$SCRIPT_URL" 2>/dev/null | head -n 100 > "$TEMP_REMOTE_VERSION_FILE"; then
+    if ! curl -fsSL --connect-timeout 5 --max-time 8 "$SCRIPT_URL" 2>/dev/null | head -n 100 > "$TEMP_REMOTE_VERSION_FILE"; then
         UPDATE_AVAILABLE=false
         rm -f "$TEMP_REMOTE_VERSION_FILE"
+        printf '%s\nfalse\n' "$now" > "$cache_file" 2>/dev/null
         return
     fi
 
@@ -526,6 +541,7 @@ check_update_status() {
 
     if [[ -z "$REMOTE_VERSION" ]]; then
         UPDATE_AVAILABLE=false
+        printf '%s\nfalse\n' "$now" > "$cache_file" 2>/dev/null
         return
     fi
 
@@ -563,6 +579,8 @@ check_update_status() {
     else
         UPDATE_AVAILABLE=false
     fi
+
+    printf '%s\n%s\n' "$now" "$UPDATE_AVAILABLE" > "$cache_file" 2>/dev/null
 }
 
 show_menu() {
