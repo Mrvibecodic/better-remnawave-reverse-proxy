@@ -497,8 +497,15 @@ create_api_token() {
     local target_dir=$3
     local token_name="${4:-subscription-page}"
 
+    # better-fork: панель Remnawave 2.8+ сменила тело POST /api/tokens — теперь ОБЯЗАТЕЛЬНЫ
+    # name (string 2..30) и expiresInDays (number >=1); поля tokenName больше нет, из-за чего
+    # старый запрос падал с "Validation failed" и токен для subscription-page не создавался.
+    # scopes опциональны (дефолт ["*"] = полный доступ). Суффикс — чтобы имя не конфликтовало
+    # при переустановке. expiresInDays=3650 (~10 лет).
+    local api_name
+    api_name="$(printf '%.20s' "$token_name")-$(openssl rand -hex 3)"
     local token_data
-    token_data=$(jq -n --arg n "$token_name" '{tokenName:$n}')
+    token_data=$(jq -n --arg n "$api_name" '{name: $n, expiresInDays: 3650}')
     local api_response
     api_response=$(make_api_request "POST" "http://$domain_url/api/tokens" "$token" "$token_data")
 
