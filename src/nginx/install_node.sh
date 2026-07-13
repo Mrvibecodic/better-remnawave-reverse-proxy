@@ -70,7 +70,7 @@ x-logging: &logging
 
 services:
   remnawave-nginx:
-    image: nginx:1.28
+    image: nginx:1.30
     container_name: remnawave-nginx
     hostname: remnawave-nginx
     <<: [*common, *logging]
