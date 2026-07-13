@@ -66,7 +66,7 @@ x-logging: &logging
 
 services:
     caddy:
-      image: caddy:2.11.2
+      image: caddy:2.11.4
       container_name: caddy-remnawave
       hostname: caddy-remnawave
       <<: [*common, *logging]

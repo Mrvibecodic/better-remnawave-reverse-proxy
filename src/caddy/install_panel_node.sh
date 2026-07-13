@@ -243,7 +243,7 @@ services:
       retries: 3
 
   remnawave-caddy:
-      image: caddy:2.11.2
+      image: caddy:2.11.4
       container_name: remnawave-caddy
       hostname: remnawave-caddy
       <<: [*common, *logging]
