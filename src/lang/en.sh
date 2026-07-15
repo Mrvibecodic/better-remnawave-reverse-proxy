@@ -470,3 +470,4 @@ LANG[DOCKER_MIRROR_INVALID]="Invalid mirror URL (must start with http:// or http
 LANG[DOCKER_MIRROR_APPLYING]="Applying Docker mirror and restarting Docker..."
 LANG[DOCKER_MIRROR_OK]="Docker registry mirror configured: %s"
 LANG[DOCKER_MIRROR_FAILED]="Failed to apply the Docker mirror — reverted to the previous config."
+LANG[CRON_START_WARN]="Warning: could not start the cron service (e.g. no systemd / container). It is only needed for automatic certificate renewal — start it manually if you use ACME/certbot. Installation continues."

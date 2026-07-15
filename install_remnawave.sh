@@ -1519,6 +1519,47 @@ preflight_dependency_update() {
     return 0
 }
 
+ensure_cron() {
+    # better-fork: cron нужен для автопродления сертификата, но его недоступность
+    # (контейнер без systemd, cronie вместо cron, policy-rc.d) НЕ должна ронять установку.
+    # Пробуем поднять cron всеми способами; при полном провале — предупреждаем и продолжаем.
+    if ! command -v crontab >/dev/null 2>&1; then
+        apt-get install -y cron >/dev/null 2>&1 || apt-get install -y cronie >/dev/null 2>&1
+    fi
+
+    # имя сервиса: cron (Debian/Ubuntu) или crond (cronie)
+    local svc="cron"
+    if [ -x /etc/init.d/crond ] && [ ! -x /etc/init.d/cron ]; then
+        svc="crond"
+    elif command -v systemctl >/dev/null 2>&1 \
+         && ! systemctl list-unit-files 2>/dev/null | grep -q '^cron\.service' \
+         && systemctl list-unit-files 2>/dev/null | grep -q '^crond\.service'; then
+        svc="crond"
+    fi
+
+    local started=0
+    if [ -d /run/systemd/system ] && command -v systemctl >/dev/null 2>&1; then
+        systemctl enable --now "$svc" >/dev/null 2>&1 && started=1
+    fi
+    if [ "$started" -ne 1 ] && command -v service >/dev/null 2>&1; then
+        service "$svc" start >/dev/null 2>&1 && started=1
+    fi
+    if [ "$started" -ne 1 ] && [ -x "/etc/init.d/$svc" ]; then
+        "/etc/init.d/$svc" start >/dev/null 2>&1 && started=1
+        command -v update-rc.d >/dev/null 2>&1 && update-rc.d "$svc" defaults >/dev/null 2>&1
+    fi
+
+    # финальная проверка: демон реально запущен?
+    if pgrep -x cron >/dev/null 2>&1 || pgrep -x crond >/dev/null 2>&1; then
+        started=1
+    fi
+
+    if [ "$started" -ne 1 ]; then
+        echo -e "${COLOR_YELLOW}${LANG[CRON_START_WARN]}${COLOR_RESET}" >&2
+    fi
+    return 0
+}
+
 install_packages() {
     echo -e "${COLOR_YELLOW}${LANG[INSTALL_PACKAGES]}${COLOR_RESET}"
 
@@ -1541,25 +1582,7 @@ install_packages() {
         fi
     fi
 
-    if ! dpkg -l | grep -q '^ii.*cron '; then
-        if ! apt-get install -y cron; then
-            echo -e "${COLOR_RED}${LANG[ERROR_INSTALL_CRON]}" "${COLOR_RESET}" >&2
-            return 1
-        fi
-    fi
-
-    if ! systemctl is-active --quiet cron; then
-        if ! systemctl start cron; then
-            echo -e "${COLOR_RED}${LANG[START_CRON_ERROR]}${COLOR_RESET}" >&2
-            return 1
-        fi
-    fi
-    if ! systemctl is-enabled --quiet cron; then
-        if ! systemctl enable cron; then
-            echo -e "${COLOR_RED}${LANG[START_CRON_ERROR]}${COLOR_RESET}" >&2
-            return 1
-        fi
-    fi
+    ensure_cron
 
     if ! command -v docker >/dev/null 2>&1 || ! docker info >/dev/null 2>&1; then
         echo -e "${COLOR_YELLOW}Installing Docker via get.docker.com...${COLOR_RESET}"
