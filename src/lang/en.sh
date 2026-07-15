@@ -12,7 +12,7 @@ LANG[LANG_EN]="English"
 LANG[LANG_RU]="Русский"
 #check
 LANG[ERROR_ROOT]="Script must be run as root"
-LANG[ERROR_OS]="Supported only Debian 11/12 and Ubuntu 22.04/24.04"
+LANG[ERROR_OS]="Supported only Debian 11/12/13 and Ubuntu 22.04/24.04"
 #Install Packages
 LANG[ERROR_UPDATE_LIST]="Failed to update package list"
 LANG[ERROR_INSTALL_PACKAGES]="Failed to install required packages"

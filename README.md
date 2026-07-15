@@ -31,7 +31,7 @@
 bash <(curl -Ls https://raw.githubusercontent.com/Mrvibecodic/better-remnawave-reverse-proxy/refs/heads/main/install_remnawave.sh)
 ```
 
-> Debian 11/12 and Ubuntu 22.04/24.04 are supported. Run as **root** on a fresh system. You need your own domain.
+> Debian 11/12/13 and Ubuntu 22.04/24.04 are supported. Run as **root** on a fresh system. You need your own domain.
 
 ---
 
