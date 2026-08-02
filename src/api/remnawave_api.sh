@@ -148,7 +148,8 @@ get_public_key() {
         return 1
     fi
 
-    local pubkey=$(echo "$api_response" | jq -r '.response.pubKey')
+    # better-fork: панель 3.x отдаёт ключ ноды как .response.secretKey (в 2.x было .response.pubKey)
+    local pubkey=$(echo "$api_response" | jq -r '.response.secretKey')
     if [ -z "$pubkey" ] || [ "$pubkey" = "null" ]; then
         api_err "${LANG[ERROR_EXTRACT_PUBLIC_KEY]}: $api_response"
         return 1
@@ -235,7 +236,6 @@ create_node() {
     "trafficLimitBytes": 0,
     "notifyPercent": 0,
     "trafficResetDay": 31,
-    "excludedInbounds": [],
     "countryCode": "XX",
     "consumptionMultiplier": 1.0
 }
@@ -388,7 +388,6 @@ create_host() {
         host: "",
         alpn: null,
         fingerprint: "chrome",
-        allowInsecure: false,
         isDisabled: false,
         securityLayer: "DEFAULT"
     }')

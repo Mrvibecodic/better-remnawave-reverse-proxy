@@ -196,7 +196,7 @@ services:
       retries: 3
 
   remnawave:
-    image: remnawave/backend:2
+    image: remnawave/backend:3
     container_name: remnawave
     hostname: remnawave
     <<: [*common, *logging, *env, *networks]
