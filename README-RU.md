@@ -6,6 +6,8 @@
   <a href="https://www.gnu.org/software/bash/"><img src="https://img.shields.io/badge/Bash-script-3DDC97?logo=gnubash&logoColor=white" alt="Bash" /></a>
   <img src="https://img.shields.io/badge/OS-Debian%20%7C%20Ubuntu-8b949e?logo=debian&logoColor=white" alt="OS" />
   <img src="https://img.shields.io/badge/stack-NGINX%20%C2%B7%20Caddy%20%C2%B7%20XRAY%20REALITY-2ea043" alt="Stack" />
+  <img src="https://img.shields.io/badge/version-3.1.0--better-3DDC97" alt="Version" />
+  <img src="https://img.shields.io/badge/Remnawave-panel%203.x-2ea043" alt="Remnawave 3.x" />
   <a href="./LICENSE"><img src="https://img.shields.io/github/license/Mrvibecodic/better-remnawave-reverse-proxy?color=8b949e" alt="License" /></a>
 </p>
 
@@ -41,15 +43,30 @@ bash <(curl -Ls https://raw.githubusercontent.com/Mrvibecodic/better-remnawave-r
 
 | Область | Улучшение |
 |---------|-----------|
+| **Готовность к панели 3.x** | Отслеживает Remnawave **3.x**: пин `backend:3`, чтобы панель, нода (3.x) и страница подписки (8.x) были одной генерации; `keygen` читает `.response.secretKey`, тела запросов соответствуют DTO 3.1, API‑токены создаются с `name` + `expiresInDays`. |
 | **Ошибки установки** | Вызовы API возвращают корректные коды и **останавливают** установку, а не идут дальше с пустыми значениями; каждый сбой указывает на лог. |
 | **Подключение отдельной ноды** | Показывает **IP этого сервера** и точный порядок в панели, затем различает: *нода отдаёт трафик* / *ядро поднято, но ждёт конфиг от панели* / *контейнер упал (неверный SECRET_KEY)* — с подсказками. |
 | **Безопасность** | У каждой установки свои случайные `WEBHOOK_SECRET_HEADER` и пароль PostgreSQL (никаких общих зашитых секретов); `chmod 600` на `.env` и `docker-compose.yml`. |
 | **Крон сертификата** | Больше нет еженедельного простоя — nginx перезапускается **только при реальном обновлении** (certbot `renew_hook`). |
 | **Зависимости** | Preflight: показывает версии и предлагает одним **y/n** обновить управляемые пакеты + Docker; гарантирован `openssl`; **arch‑aware** `yq` (amd64/arm64) с валидацией загрузки; понятные ошибки `certbot-dns-gcore` (pip). |
 | **Загрузки Docker** | Ошибки `docker compose` показываются (в т.ч. **лимиты Docker Hub**), а не уходят в `/dev/null`; опциональный промпт **зеркала реестра** для обхода лимитов/блокировок. |
+| **Любое окружение** | Настройка cron стала некритичной: пробует systemd → `service` → `init.d` (поддержка `cronie`/`crond`), поэтому установка больше не прерывается в контейнерах без systemd — автопродление серта настраивается везде, где cron доступен. |
 | **Надёжность** | Стабильная локаль через `LC_ALL`; исправлены унаследованные баги — проверка конфига WARP перед PATCH, остановка спиннера/выходы в selfsteal, `exit`→`return` в меню‑функциях, безопаснее IPv6. |
 
 Подробный построчный список изменений ведётся автором в заметках проекта.
+
+---
+
+## 📦 Закреплённые версии
+
+| Компонент | Версия |
+|-----------|--------|
+| Панель Remnawave | `remnawave/backend:3` |
+| Нода / страница подписки | `:latest` (3.x / 8.x) |
+| NGINX | `1.30` (текущая стабильная ветка) |
+| Caddy | `2.11.4` |
+| PostgreSQL | `18.3` |
+| Valkey | `9.0.3-alpine` |
 
 ---
 

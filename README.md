@@ -6,6 +6,8 @@
   <a href="https://www.gnu.org/software/bash/"><img src="https://img.shields.io/badge/Bash-script-3DDC97?logo=gnubash&logoColor=white" alt="Bash" /></a>
   <img src="https://img.shields.io/badge/OS-Debian%20%7C%20Ubuntu-8b949e?logo=debian&logoColor=white" alt="OS" />
   <img src="https://img.shields.io/badge/stack-NGINX%20%C2%B7%20Caddy%20%C2%B7%20XRAY%20REALITY-2ea043" alt="Stack" />
+  <img src="https://img.shields.io/badge/version-3.1.0--better-3DDC97" alt="Version" />
+  <img src="https://img.shields.io/badge/Remnawave-panel%203.x-2ea043" alt="Remnawave 3.x" />
   <a href="./LICENSE"><img src="https://img.shields.io/github/license/Mrvibecodic/better-remnawave-reverse-proxy?color=8b949e" alt="License" /></a>
 </p>
 
@@ -41,15 +43,30 @@ Everything from the original, plus:
 
 | Area | Improvement |
 |------|-------------|
+| **Panel 3.x ready** | Tracks Remnawave **3.x**: `backend:3` pinned so panel, node (3.x) and subscription‑page (8.x) stay in sync; `keygen` reads `.response.secretKey`, request bodies match 3.1 DTOs, API tokens use `name` + `expiresInDays`. |
 | **Install errors** | API calls return proper exit codes and **stop** the install instead of silently continuing with empty values; every failure points to the log. |
 | **Separate‑node connection** | Shows **this server's IP** and the exact panel steps, then distinguishes *core is serving* / *up but waiting for config from the panel* / *container crashed (bad SECRET_KEY)* — each with actionable hints. |
 | **Security** | Per‑install random `WEBHOOK_SECRET_HEADER` and PostgreSQL password (no shared hardcoded secrets); `chmod 600` on `.env` and `docker-compose.yml`. |
 | **Certificate cron** | No more weekly panel downtime — nginx restarts **only on a real renewal** (certbot `renew_hook`). |
 | **Dependencies** | Preflight that shows installed versions and offers a single **y/n** to update managed packages + Docker; `openssl` ensured; **arch‑aware** `yq` (amd64/arm64) with download validation; clearer `certbot-dns-gcore` (pip) errors. |
 | **Docker pulls** | `docker compose` failures are shown (incl. **Docker Hub rate limits**) instead of going to `/dev/null`; optional **registry‑mirror** prompt routes pulls around limits/blocks. |
+| **Any environment** | cron setup is non‑fatal and tries systemd → `service` → `init.d` (supports `cronie`/`crond`), so installs no longer abort on containers without systemd — cert auto‑renewal still set up whenever cron is available. |
 | **Robustness** | Stable locale via `LC_ALL`; fixed inherited bugs — WARP config validation before PATCH, selfsteal spinner/exit handling, `exit`→`return` in menu functions, safer IPv6 handling. |
 
 A detailed, itemized changelog is kept by the author together with the project notes.
+
+---
+
+## 📦 Pinned stack
+
+| Component | Version |
+|-----------|---------|
+| Remnawave panel | `remnawave/backend:3` |
+| Remnawave node / subscription page | `:latest` (3.x / 8.x) |
+| NGINX | `1.30` (current stable branch) |
+| Caddy | `2.11.4` |
+| PostgreSQL | `18.3` |
+| Valkey | `9.0.3-alpine` |
 
 ---
 
