@@ -107,6 +107,19 @@ SSL через **Cloudflare API**, **Gcore API** (wildcard, DNS‑01) или **A
 
 ---
 
+## 👥 Контрибьюторы форка
+
+Спасибо всем, кто улучшает этот форк:
+
+| Контрибьютор | Вклад |
+|--------------|-------|
+| [@Mrvibecodic](https://github.com/Mrvibecodic) | Мейнтейнер форка — обработка ошибок, UX подключения ноды, безопасность, поддержка панели 3.x |
+| [@spectreq666](https://github.com/spectreq666) (Alexey Malinin) | [#1](https://github.com/Mrvibecodic/better-remnawave-reverse-proxy/pull/1) — сжатие в реверс‑прокси (gzip / encode), env `APP_SECRET` для панели 3.x, `minClientVer` в дефолтном профиле, правки локализации |
+
+Пул‑реквесты приветствуются — открывайте issue или PR.
+
+---
+
 ## 🙌 Благодарности
 
 Сделано на базе **[eGamesAPI/remnawave-reverse-proxy](https://github.com/eGamesAPI/remnawave-reverse-proxy)** — вся оригинальная работа и документация принадлежат авторам (сохранены как **[README-RU-upstream.md](./README-RU-upstream.md)**). На основе [Remnawave](https://remna.st) и [XRAY](https://github.com/XTLS/Xray-core).

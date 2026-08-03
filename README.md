@@ -107,6 +107,19 @@ SSL via **Cloudflare API**, **Gcore API** (wildcard, DNS‑01) or **ACME HTTP‑
 
 ---
 
+## 👥 Fork contributors
+
+Thanks to everyone improving this fork:
+
+| Contributor | Contribution |
+|-------------|--------------|
+| [@Mrvibecodic](https://github.com/Mrvibecodic) | Fork maintainer — error handling, node‑connection UX, security hardening, panel 3.x support |
+| [@spectreq666](https://github.com/spectreq666) (Alexey Malinin) | [#1](https://github.com/Mrvibecodic/better-remnawave-reverse-proxy/pull/1) — reverse‑proxy compression (gzip / encode), `APP_SECRET` env for panel 3.x, `minClientVer` in the default profile, localization fixes |
+
+Pull requests are welcome — open an issue or a PR.
+
+---
+
 ## 🙌 Credits
 
 Built on top of **[eGamesAPI/remnawave-reverse-proxy](https://github.com/eGamesAPI/remnawave-reverse-proxy)** — all original work and documentation belong to its authors (kept here as **[README-upstream.md](./README-upstream.md)**). Powered by [Remnawave](https://remna.st) and [XRAY](https://github.com/XTLS/Xray-core).
