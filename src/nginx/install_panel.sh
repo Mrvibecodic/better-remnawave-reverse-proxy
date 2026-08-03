@@ -43,6 +43,7 @@ install_panel_nginx() {
     METRICS_PASS=$(generate_user)
 
     APP_SECRET=$(openssl rand -base64 48 | tr -dc 'a-zA-Z0-9' | head -c 64)
+	
     # better-fork: webhook-секрет и пароль БД генерируются (раньше были захардкожены)
     WEBHOOK_SECRET_HEADER_VALUE=$(openssl rand -hex 32)
     POSTGRES_PASSWORD_VALUE=$(openssl rand -base64 36 | tr -dc 'a-zA-Z0-9' | head -c 32)
