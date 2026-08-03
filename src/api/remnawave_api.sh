@@ -307,9 +307,16 @@ create_config_profile() {
     local private_key=$5
     local inbound_tag="${6:-Steal}"
 
+		# better-fork: поддержка параметра minClientVer для Reality для не Xray клиентов
+    local use_non_xray_clients="false"
+    reading "${LANG[NON_XRAY_CLIENTS_PROMPT]}" ans_non_xray
+    if [[ "$ans_non_xray" =~ ^[Yy]$ ]]; then
+        use_non_xray_clients="true"
+    fi
+
     local short_id=$(openssl rand -hex 8)
 
-    local request_body=$(jq -n --arg name "$name" --arg domain "$domain" --arg private_key "$private_key" --arg short_id "$short_id" --arg inbound_tag "$inbound_tag" '{
+    local request_body=$(jq -n --arg name "$name" --arg domain "$domain" --arg private_key "$private_key" --arg short_id "$short_id" --arg inbound_tag "$inbound_tag" --arg use_non_xray_clients "$use_non_xray_clients" '{
         name: $name,
         config: {
             log: { loglevel: "warning" },
@@ -334,7 +341,7 @@ create_config_profile() {
                         shortIds: [$short_id],
                         privateKey: $private_key,
                         serverNames: [$domain]
-                    }
+                    } + if $use_non_xray_clients == "true" then {"minClientVer": "0.0.0"} else {} end)
                 }
             }],
             outbounds: [
