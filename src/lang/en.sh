@@ -472,4 +472,4 @@ LANG[DOCKER_MIRROR_OK]="Docker registry mirror configured: %s"
 LANG[DOCKER_MIRROR_FAILED]="Failed to apply the Docker mirror — reverted to the previous config."
 LANG[CRON_START_WARN]="Warning: could not start the cron service (e.g. no systemd / container). It is only needed for automatic certificate renewal — start it manually if you use ACME/certbot. Installation continues."
 #better-fork: minClientVer Reality parameter compatibility for non Xray clients
-LANG[NON_XRAY_CLIENTS_PROMPT]="Do you plan to use non Xray clients? (y/N):"
+LANG[NON_XRAY_CLIENTS_PROMPT]="Do you plan to use non Xray clients? (y/N) [default: N]: "
