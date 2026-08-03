@@ -335,6 +335,7 @@ http://{\$SELF_STEAL_DOMAIN} {
 
 https://{\$SELF_STEAL_DOMAIN} {
     bind unix/{\$CADDY_SOCKET_PATH}
+    encode
     root * /var/www/html
     try_files {path} /index.html
     file_server
@@ -347,7 +348,7 @@ http://{\$PANEL_DOMAIN} {
 
 https://{\$PANEL_DOMAIN} {
     bind unix/{\$CADDY_SOCKET_PATH}
-	encode
+    encode
     @has_token_param {
         query $cookies_random1=$cookies_random2
     }
@@ -401,7 +402,7 @@ http://{\$SUB_DOMAIN} {
 
 https://{\$SUB_DOMAIN} {
     bind unix/{\$CADDY_SOCKET_PATH}
-	encode
+    encode
     handle {
         reverse_proxy {\$SUB_BACKEND_URL} {
             header_up X-Real-IP {remote}

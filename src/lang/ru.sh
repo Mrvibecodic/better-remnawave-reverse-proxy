@@ -466,5 +466,3 @@ LANG[DOCKER_MIRROR_APPLYING]="Применяю зеркало Docker и пере
 LANG[DOCKER_MIRROR_OK]="Зеркало реестра Docker настроено: %s"
 LANG[DOCKER_MIRROR_FAILED]="Не удалось применить зеркало Docker — откатил на прежнюю конфигурацию."
 LANG[CRON_START_WARN]="Предупреждение: не удалось запустить службу cron (например, нет systemd / контейнер). Она нужна только для автопродления сертификата — запустите её вручную, если используете ACME/certbot. Установка продолжится."
-#better-fork: совместимость параметра Reality minClientVer для работы не с Xray клиентами
-LANG[NON_XRAY_CLIENTS_PROMPT]="Вы планируете использовать не Xray клиенты? (y/N) [по умолчанию: N]: "
