@@ -71,7 +71,7 @@ REDIS_SOCKET=/var/run/valkey/valkey.sock
 #REDIS_PORT=
 
 ### Secrets ###
-APP_SECRET=$JWT_AUTH_SECRET
+APP_SECRET=$APP_SECRET
 
 # Set the session idle timeout in the panel to avoid daily logins.
 # Value in hours: 12–168
