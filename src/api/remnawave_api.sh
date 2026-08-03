@@ -333,7 +333,8 @@ create_config_profile() {
                         spiderX: "",
                         shortIds: [$short_id],
                         privateKey: $private_key,
-                        serverNames: [$domain]
+                        serverNames: [$domain],
+                        minClientVer: "26.3.27"
                     }
                 }
             }],

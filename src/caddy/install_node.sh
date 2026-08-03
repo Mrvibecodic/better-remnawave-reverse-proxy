@@ -127,6 +127,7 @@ http://{\$SELF_STEAL_DOMAIN} {
 
 https://{\$SELF_STEAL_DOMAIN} {
     bind unix/{\$CADDY_SOCKET_PATH}
+    encode
     root * /var/www/html
     try_files {path} /index.html
     file_server

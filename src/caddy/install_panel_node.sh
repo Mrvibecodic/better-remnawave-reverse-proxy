@@ -45,8 +45,8 @@ install_panel_node_caddy() {
     METRICS_USER=$(generate_user)
     METRICS_PASS=$(generate_user)
 
-    JWT_AUTH_SECRET=$(openssl rand -base64 48 | tr -dc 'a-zA-Z0-9' | head -c 64)
-    JWT_API_TOKENS_SECRET=$(openssl rand -base64 48 | tr -dc 'a-zA-Z0-9' | head -c 64)
+    APP_SECRET=$(openssl rand -base64 48 | tr -dc 'a-zA-Z0-9' | head -c 64)
+
     # better-fork: webhook-секрет и пароль БД генерируются (раньше были захардкожены)
     WEBHOOK_SECRET_HEADER_VALUE=$(openssl rand -hex 32)
     POSTGRES_PASSWORD_VALUE=$(openssl rand -base64 36 | tr -dc 'a-zA-Z0-9' | head -c 32)
@@ -73,9 +73,8 @@ REDIS_SOCKET=/var/run/valkey/valkey.sock
 #REDIS_HOST=
 #REDIS_PORT=
 
-### JWT ###
-JWT_AUTH_SECRET=$JWT_AUTH_SECRET
-JWT_API_TOKENS_SECRET=$JWT_API_TOKENS_SECRET
+### Secrets ###
+APP_SECRET=$APP_SECRET
 
 # Set the session idle timeout in the panel to avoid daily logins.
 # Value in hours: 12–168
@@ -109,11 +108,6 @@ FRONT_END_DOMAIN=$PANEL_DOMAIN
 SUB_PUBLIC_DOMAIN=$SUB_DOMAIN
 
 ### If CUSTOM_SUB_PREFIX is set in @remnawave/subscription-page, append the same path to SUB_PUBLIC_DOMAIN. Example: SUB_PUBLIC_DOMAIN=sub-page.example.com/sub ###
-
-### SWAGGER ###
-SWAGGER_PATH=/docs
-SCALAR_PATH=/scalar
-IS_DOCS_ENABLED=false
 
 ### PROMETHEUS ###
 ### Metrics are available at http://127.0.0.1:METRICS_PORT/metrics
@@ -341,6 +335,7 @@ http://{\$SELF_STEAL_DOMAIN} {
 
 https://{\$SELF_STEAL_DOMAIN} {
     bind unix/{\$CADDY_SOCKET_PATH}
+    encode
     root * /var/www/html
     try_files {path} /index.html
     file_server
@@ -353,7 +348,7 @@ http://{\$PANEL_DOMAIN} {
 
 https://{\$PANEL_DOMAIN} {
     bind unix/{\$CADDY_SOCKET_PATH}
-
+    encode
     @has_token_param {
         query $cookies_random1=$cookies_random2
     }
@@ -407,6 +402,7 @@ http://{\$SUB_DOMAIN} {
 
 https://{\$SUB_DOMAIN} {
     bind unix/{\$CADDY_SOCKET_PATH}
+    encode
     handle {
         reverse_proxy {\$SUB_BACKEND_URL} {
             header_up X-Real-IP {remote}
