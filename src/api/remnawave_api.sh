@@ -310,7 +310,7 @@ create_config_profile() {
 	# better-fork: поддержка параметра minClientVer для Reality для не Xray клиентов
     local use_non_xray_clients="false"
     reading "${LANG[NON_XRAY_CLIENTS_PROMPT]}" ans_non_xray
-    if [[ "$ans_non_xray" =~ ^[Yy]$ ]]; then
+    if [[ "$ans_non_xray" =~ ^[YyНн]$ ]]; then
         use_non_xray_clients="true"
     fi
 
