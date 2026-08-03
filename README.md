@@ -43,7 +43,9 @@ Everything from the original, plus:
 
 | Area | Improvement |
 |------|-------------|
+| **Compression** | Panel 3.x no longer compresses responses, so the reverse proxy does it: `gzip` (nginx) / `encode` (Caddy) on panel, subscription and selfsteal server blocks. |
 | **Panel 3.x ready** | Tracks Remnawave **3.x**: `backend:3` pinned so panel, node (3.x) and subscription‑page (8.x) stay in sync; `keygen` reads `.response.secretKey`, request bodies match 3.1 DTOs, API tokens use `name` + `expiresInDays`. |
+| **Client version gate** | Default inbound ships `minClientVer: "26.3.27"` — the server checks the client's Xray version. See the note below to turn it off. |
 | **Install errors** | API calls return proper exit codes and **stop** the install instead of silently continuing with empty values; every failure points to the log. |
 | **Separate‑node connection** | Shows **this server's IP** and the exact panel steps, then distinguishes *core is serving* / *up but waiting for config from the panel* / *container crashed (bad SECRET_KEY)* — each with actionable hints. |
 | **Security** | Per‑install random `WEBHOOK_SECRET_HEADER` and PostgreSQL password (no shared hardcoded secrets); `chmod 600` on `.env` and `docker-compose.yml`. |
@@ -57,11 +59,21 @@ A detailed, itemized changelog is kept by the author together with the project n
 
 ---
 
+> [!IMPORTANT]
+> **`minClientVer` in the default config profile.** The generated inbound sets `minClientVer: "26.3.27"`, so the server verifies the client's Xray version and rejects older clients.
+> To disable the check, set the value to `0.0.0` — **removing the field is not enough, the check stays active**:
+> ```json
+> "realitySettings": { "minClientVer": "0.0.0", ... }
+> ```
+> Edit it in the panel: *Config profiles → your profile → inbound → `realitySettings`*.
+
+---
+
 ## 📦 Pinned stack
 
 | Component | Version |
 |-----------|---------|
-| Remnawave panel | `remnawave/backend:3` |
+| Remnawave panel | `remnawave/backend:3` (env: `APP_SECRET`) |
 | Remnawave node / subscription page | `:latest` (3.x / 8.x) |
 | NGINX | `1.30` (current stable branch) |
 | Caddy | `2.11.4` |
