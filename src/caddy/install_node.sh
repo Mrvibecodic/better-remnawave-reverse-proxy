@@ -187,7 +187,7 @@ installation_node_caddy() {
         exit 1
     fi
 
-    randomhtml
+    setup_selfsteal_template
 
     sleep 5
     local node_running
@@ -234,6 +234,7 @@ installation_node_caddy() {
     else
         echo -e "${COLOR_YELLOW}${LANG[NODE_WAITING_CONFIG_REASON]}${COLOR_RESET}"
     fi
+    [ "${SELFSTEAL_TEMPLATE_SKIPPED:-0}" = "1" ] && echo -e "${COLOR_YELLOW}${LANG[OWN_TEMPLATE_CHECK_HINT]}${COLOR_RESET}"
     echo -e "${COLOR_WHITE}${LANG[NODE_WAITING_CHECK]}${COLOR_RESET}"
     printf  "${COLOR_WHITE}${LANG[NODE_PREREQ_1]}${COLOR_RESET}\n" "$NODE_IP"
     echo -e "${COLOR_WHITE}${LANG[NODE_PREREQ_2]}${COLOR_RESET}"

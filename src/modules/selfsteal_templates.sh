@@ -8,6 +8,7 @@ show_template_source_options() {
     echo -e "${COLOR_YELLOW}1. ${LANG[SIMPLE_WEB_TEMPLATES]}${COLOR_RESET}"
     echo -e "${COLOR_YELLOW}2. ${LANG[SNI_TEMPLATES]}${COLOR_RESET}"
     echo -e "${COLOR_YELLOW}3. ${LANG[NOTHING_TEMPLATES]}${COLOR_RESET}"
+    echo -e "${COLOR_YELLOW}4. ${LANG[OWN_TEMPLATE_OPTION]}${COLOR_RESET}"
     echo -e ""
     echo -e "${COLOR_YELLOW}0. ${LANG[EXIT]}${COLOR_RESET}"
     echo -e ""
@@ -169,4 +170,37 @@ randomhtml() {
 
     cd /opt/
     rm -rf simple-web-templates-main/ sni-templates-main/ nothing-sni-main/
+}
+
+# better-fork: не ставить чужой шаблон — только подготовить каталог и предупредить.
+# Ничего не удаляет: уже загруженные файлы пользователя остаются на месте.
+skip_template_setup() {
+    local webroot="/var/www/html"
+    mkdir -p "$webroot"
+    echo -e ""
+    echo -e "${COLOR_YELLOW}=================================================${COLOR_RESET}"
+    echo -e "${COLOR_YELLOW}${LANG[OWN_TEMPLATE_TITLE]}${COLOR_RESET}"
+    printf  "${COLOR_WHITE}${LANG[OWN_TEMPLATE_PATH]}${COLOR_RESET}\n" "$webroot"
+    if [ -z "$(ls -A "$webroot" 2>/dev/null)" ]; then
+        echo -e "${COLOR_RED}${LANG[OWN_TEMPLATE_EMPTY_WARN]}${COLOR_RESET}"
+    else
+        printf "${COLOR_GREEN}${LANG[OWN_TEMPLATE_HAS_FILES]}${COLOR_RESET}\n" "$(ls -A "$webroot" 2>/dev/null | wc -l)"
+    fi
+    echo -e "${COLOR_YELLOW}=================================================${COLOR_RESET}"
+    SELFSTEAL_TEMPLATE_SKIPPED=1
+    return 0
+}
+
+# better-fork: выбор шаблона при установке ноды (раньше ставился принудительно случайный)
+setup_selfsteal_template() {
+    show_template_source_options
+    reading "${LANG[CHOOSE_TEMPLATE_OPTION]}" TEMPLATE_CHOICE
+    case "$TEMPLATE_CHOICE" in
+        1) randomhtml "simple" ;;
+        2) randomhtml "sni" ;;
+        3) randomhtml "nothing" ;;
+        4) skip_template_setup ;;
+        *) randomhtml ;;
+    esac
+    return 0
 }

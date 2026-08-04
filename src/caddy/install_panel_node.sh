@@ -543,5 +543,5 @@ installation_panel_node_caddy() {
     echo -e "${COLOR_GREEN}remnawave_reverse${COLOR_RESET}"
     echo -e "${COLOR_YELLOW}=================================================${COLOR_RESET}"
 
-    randomhtml
+    setup_selfsteal_template
 }
