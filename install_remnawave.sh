@@ -282,7 +282,7 @@ update_remnawave_reverse() {
     done
 
     # Modules (common)
-    local common_modules=("add_node" "manage_panel" "warp" "ipv6" "selfsteal_templates")
+    local common_modules=("add_node" "manage_panel" "warp" "ipv6" "selfsteal_templates" "xray_core")
     for module in "${common_modules[@]}"; do
         local module_file="${DIR_REMNAWAVE}modules/${module}.sh"
         if [ -f "$module_file" ]; then
@@ -605,7 +605,8 @@ show_menu() {
     echo -e "${COLOR_YELLOW}9. ${LANG[MENU_9]}${COLOR_RESET}" # Manage certificates domain
     echo -e ""
     echo -e "${COLOR_YELLOW}10. ${LANG[MENU_10]}${COLOR_RESET}" # Check for updates
-    echo -e "${COLOR_YELLOW}11. ${LANG[MENU_11]}${COLOR_RESET}" # Remove script
+    echo -e "${COLOR_YELLOW}11. ${LANG[MENU_11]}${COLOR_RESET}"
+    echo -e "${COLOR_YELLOW}12. ${LANG[MENU_12]}${COLOR_RESET}" # Remove script
     echo -e ""
     echo -e "${COLOR_YELLOW}0. ${LANG[EXIT]}${COLOR_RESET}"
     echo -e "${COLOR_YELLOW}- ${LANG[FAST_START]//remnawave_reverse/${COLOR_GREEN}remnawave_reverse${COLOR_RESET}}"
@@ -2532,6 +2533,7 @@ load_caddy_node_module() { load_module "install_node" "caddy" "${1:-false}"; }
 load_warp_module() { load_module "warp" "modules" "${1:-false}"; }
 load_ipv6_module() { load_module "ipv6" "modules" "${1:-false}"; }
 load_selfsteal_templates_module() { load_module "selfsteal_templates" "modules" "${1:-false}"; }
+load_xray_core_module() { load_module "xray_core" "modules" "${1:-false}"; }
 
 log_entry
 
@@ -2647,6 +2649,10 @@ case $OPTION in
         ;;
     11)
         remove_script
+        ;;
+    12)
+        load_xray_core_module
+        manage_xray_core
         ;;
     0)
         echo -e "${COLOR_YELLOW}${LANG[EXIT]}${COLOR_RESET}"

@@ -169,6 +169,10 @@ installation_node_caddy() {
     echo -e "${COLOR_YELLOW}=================================================${COLOR_RESET}"
     echo -e ""
 
+    # better-fork: предложить альтернативное ядро Xray (скачивается автоматически)
+    load_xray_core_module
+    offer_alt_xray_core "/opt/remnanode"
+
     echo -e "${COLOR_YELLOW}${LANG[STARTING_NODE]}${COLOR_RESET}"
     sleep 3
     cd /opt/remnanode
