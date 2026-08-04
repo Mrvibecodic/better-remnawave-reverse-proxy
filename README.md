@@ -6,7 +6,7 @@
   <a href="https://www.gnu.org/software/bash/"><img src="https://img.shields.io/badge/Bash-script-3DDC97?logo=gnubash&logoColor=white" alt="Bash" /></a>
   <img src="https://img.shields.io/badge/OS-Debian%20%7C%20Ubuntu-8b949e?logo=debian&logoColor=white" alt="OS" />
   <img src="https://img.shields.io/badge/stack-NGINX%20%C2%B7%20Caddy%20%C2%B7%20XRAY%20REALITY-2ea043" alt="Stack" />
-  <img src="https://img.shields.io/badge/version-3.2.0--better-3DDC97" alt="Version" />
+  <img src="https://img.shields.io/badge/version-3.3.1--better-3DDC97" alt="Version" />
   <img src="https://img.shields.io/badge/Remnawave-panel%203.x-2ea043" alt="Remnawave 3.x" />
   <a href="./LICENSE"><img src="https://img.shields.io/github/license/Mrvibecodic/better-remnawave-reverse-proxy?color=8b949e" alt="License" /></a>
 </p>
@@ -44,6 +44,7 @@ Everything from the original, plus:
 | Area | Improvement |
 |------|-------------|
 | **Compression** | Panel 3.x no longer compresses responses, so the reverse proxy does it: `gzip` (nginx) / `encode` (Caddy) on panel, subscription and selfsteal server blocks. |
+| **Your own selfsteal site** | Template choice is now **asked during node install** (it used to force a random one). A new option — *“do not install a template”* — configures the web server and leaves `/var/www/html` for your own files, **deleting nothing** and warning you if the directory is still empty. |
 | **Custom Xray core** | Optional alternative core for the node — the script **downloads the pinned release automatically** ([Jolymmiles/Xray-core](https://github.com/Jolymmiles/Xray-core) `v26.7.29`), verifies its SHA256, and mounts it into the node container. Menu item, install prompt, one-click rollback to the bundled core. |
 | **Panel 3.x ready** | Tracks Remnawave **3.x**: `backend:3` pinned so panel, node (3.x) and subscription‑page (8.x) stay in sync; `keygen` reads `.response.secretKey`, request bodies match 3.1 DTOs, API tokens use `name` + `expiresInDays`. |
 | **Client version gate** | Default inbound ships `minClientVer: "26.3.27"` — the server checks the client's Xray version. See the note below to turn it off. |
@@ -67,6 +68,25 @@ A detailed, itemized changelog is kept by the author together with the project n
 > "realitySettings": { "minClientVer": "0.0.0", ... }
 > ```
 > Edit it in the panel: *Config profiles → your profile → inbound → `realitySettings`*.
+
+---
+
+## 🎭 Selfsteal site (template)
+
+The node serves a decoy site on the selfsteal domain. During installation (and via menu item
+**“Install random template for selfsteal node”**) you can pick:
+
+1. **Simple web templates** · 2. **SNI templates** · 3. **Nothing SNI templates** — ready-made sets downloaded and lightly randomized by the script.
+4. **Do not install a template** — the web server is configured and the content is up to you.
+
+Choosing option **4** is the way to use your **own prepared site**: nothing is downloaded and
+**nothing is deleted** — just upload your files to `/var/www/html` (mounted read-only into
+nginx/Caddy). If the directory is still empty, the script says so explicitly, because until then the
+selfsteal domain will return an error.
+
+> [!TIP]
+> The ready-made template options wipe `/var/www/html` before copying. If your own site is already
+> there, use option 4 so it stays intact.
 
 ---
 

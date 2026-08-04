@@ -6,7 +6,7 @@
   <a href="https://www.gnu.org/software/bash/"><img src="https://img.shields.io/badge/Bash-script-3DDC97?logo=gnubash&logoColor=white" alt="Bash" /></a>
   <img src="https://img.shields.io/badge/OS-Debian%20%7C%20Ubuntu-8b949e?logo=debian&logoColor=white" alt="OS" />
   <img src="https://img.shields.io/badge/stack-NGINX%20%C2%B7%20Caddy%20%C2%B7%20XRAY%20REALITY-2ea043" alt="Stack" />
-  <img src="https://img.shields.io/badge/version-3.2.0--better-3DDC97" alt="Version" />
+  <img src="https://img.shields.io/badge/version-3.3.1--better-3DDC97" alt="Version" />
   <img src="https://img.shields.io/badge/Remnawave-panel%203.x-2ea043" alt="Remnawave 3.x" />
   <a href="./LICENSE"><img src="https://img.shields.io/github/license/Mrvibecodic/better-remnawave-reverse-proxy?color=8b949e" alt="License" /></a>
 </p>
@@ -44,6 +44,7 @@ bash <(curl -Ls https://raw.githubusercontent.com/Mrvibecodic/better-remnawave-r
 | Область | Улучшение |
 |---------|-----------|
 | **Сжатие** | Панель 3.x больше не сжимает ответы — это делает реверс-прокси: `gzip` (nginx) / `encode` (Caddy) для панели, подписки и selfsteal-блока. |
+| **Свой сайт-заглушка** | Выбор шаблона теперь **спрашивается при установке ноды** (раньше ставился случайный без спроса). Новый вариант — *«не устанавливать шаблон»* — настраивает веб-сервер и оставляет `/var/www/html` под ваши файлы, **ничего не удаляя** и предупреждая, если каталог пока пуст. |
 | **Кастомное ядро Xray** | Опциональное альтернативное ядро для ноды — скрипт **сам скачивает закреплённый релиз** ([Jolymmiles/Xray-core](https://github.com/Jolymmiles/Xray-core) `v26.7.29`), проверяет SHA256 и монтирует его в контейнер ноды. Пункт меню, промпт при установке, откат к штатному ядру в одно действие. |
 | **Готовность к панели 3.x** | Отслеживает Remnawave **3.x**: пин `backend:3`, чтобы панель, нода (3.x) и страница подписки (8.x) были одной генерации; `keygen` читает `.response.secretKey`, тела запросов соответствуют DTO 3.1, API‑токены создаются с `name` + `expiresInDays`. |
 | **Проверка версии клиента** | В дефолтном inbound задан `minClientVer: "26.3.27"` — сервер проверяет версию Xray у клиента. Как отключить — см. заметку ниже. |
@@ -67,6 +68,25 @@ bash <(curl -Ls https://raw.githubusercontent.com/Mrvibecodic/better-remnawave-r
 > "realitySettings": { "minClientVer": "0.0.0", ... }
 > ```
 > Меняется в панели: *Профили конфигурации → ваш профиль → inbound → `realitySettings`*.
+
+---
+
+## 🎭 Сайт-заглушка (шаблон)
+
+Нода отдаёт сайт-заглушку на selfsteal-домене. При установке (и через пункт меню
+**«Установить случайный шаблон для selfsteal ноды»**) можно выбрать:
+
+1. **Simple web templates** · 2. **SNI templates** · 3. **Nothing SNI templates** — готовые наборы, которые скрипт скачивает и слегка рандомизирует.
+4. **Не устанавливать шаблон** — веб-сервер настраивается, содержимое за вами.
+
+Вариант **4** — это способ использовать **свой заранее подготовленный сайт**: ничего не скачивается и
+**ничего не удаляется**, просто загрузите свои файлы в `/var/www/html` (каталог монтируется в
+nginx/Caddy только на чтение). Если каталог ещё пуст, скрипт прямо об этом скажет — до загрузки файлов
+selfsteal-домен будет отдавать ошибку.
+
+> [!TIP]
+> Готовые шаблоны очищают `/var/www/html` перед копированием. Если ваш сайт уже там — выбирайте
+> вариант 4, чтобы он остался нетронутым.
 
 ---
 
