@@ -631,6 +631,10 @@ EOL
     docker compose down > /dev/null 2>&1 &
     spinner $! "${LANG[WAITING]}"
 
+    # better-fork: предложить альтернативное ядро Xray и для режима «панель + нода»
+    load_xray_core_module
+    offer_alt_xray_core "/opt/remnawave"
+
     echo -e "${COLOR_YELLOW}${LANG[STARTING_PANEL_NODE]}${COLOR_RESET}"
     sleep 1
     if ! compose_up; then
