@@ -501,3 +501,7 @@ LANG[OWN_TEMPLATE_PATH]="Загрузите файлы своего сайта-�
 LANG[OWN_TEMPLATE_EMPTY_WARN]="ВНИМАНИЕ: каталог пуст — пока файлы не загружены, домен-заглушка будет отдавать ошибку (это ожидаемо)."
 LANG[OWN_TEMPLATE_HAS_FILES]="В каталоге уже есть объектов: %s — они не тронуты."
 LANG[OWN_TEMPLATE_CHECK_HINT]="Примечание: шаблон не ставился намеренно — залейте свои файлы в /var/www/html, и страница поднимется."
+LANG[XRAY_CORE_RESOLVING]="Определяю последний релиз ядра..."
+LANG[XRAY_CORE_LATEST_FOUND]="Последний релиз: %s — именно эта версия пойдёт в ноду."
+LANG[XRAY_CORE_LATEST_FAILED]="Не удалось получить данные с GitHub — использую проверенную версию %s."
+LANG[XRAY_CORE_STATUS_LATEST]="Последний доступный релиз: %s"

@@ -6,7 +6,7 @@
   <a href="https://www.gnu.org/software/bash/"><img src="https://img.shields.io/badge/Bash-script-3DDC97?logo=gnubash&logoColor=white" alt="Bash" /></a>
   <img src="https://img.shields.io/badge/OS-Debian%20%7C%20Ubuntu-8b949e?logo=debian&logoColor=white" alt="OS" />
   <img src="https://img.shields.io/badge/stack-NGINX%20%C2%B7%20Caddy%20%C2%B7%20XRAY%20REALITY-2ea043" alt="Stack" />
-  <img src="https://img.shields.io/badge/version-3.3.2--better-3DDC97" alt="Version" />
+  <img src="https://img.shields.io/badge/version-3.4.0--better-3DDC97" alt="Version" />
   <img src="https://img.shields.io/badge/Remnawave-panel%203.x-2ea043" alt="Remnawave 3.x" />
   <a href="./LICENSE"><img src="https://img.shields.io/github/license/Mrvibecodic/better-remnawave-reverse-proxy?color=8b949e" alt="License" /></a>
 </p>
@@ -45,7 +45,7 @@ Everything from the original, plus:
 |------|-------------|
 | **Compression** | Panel 3.x no longer compresses responses, so the reverse proxy does it: `gzip` (nginx) / `encode` (Caddy) on panel, subscription and selfsteal server blocks. |
 | **Your own selfsteal site** | Template choice is now **asked during node install** (it used to force a random one). A new option — *“do not install a template”* — configures the web server and leaves `/var/www/html` for your own files, **deleting nothing** and warning you if the directory is still empty. |
-| **Custom Xray core** | Optional alternative core for the node — the script **downloads the pinned release automatically** ([Jolymmiles/Xray-core](https://github.com/Jolymmiles/Xray-core) `v26.7.29`), verifies its SHA256, and mounts it into the node container. Menu item, install prompt, one-click rollback to the bundled core. |
+| **Custom Xray core** | Optional alternative core for the node — the script **downloads the latest release automatically** ([Jolymmiles/Xray-core](https://github.com/Jolymmiles/Xray-core) — **latest release**, shown before install), verifies its SHA256, and mounts it into the node container. Menu item, install prompt, one-click rollback to the bundled core. |
 | **Panel 3.x ready** | Tracks Remnawave **3.x**: `backend:3` pinned so panel, node (3.x) and subscription‑page (8.x) stay in sync; `keygen` reads `.response.secretKey`, request bodies match 3.1 DTOs, API tokens use `name` + `expiresInDays`. |
 | **Client version gate** | Default inbound ships `minClientVer: "26.3.27"` — the server checks the client's Xray version. See the note below to turn it off. |
 | **Install errors** | API calls return proper exit codes and **stop** the install instead of silently continuing with empty values; every failure points to the log. |
@@ -96,6 +96,7 @@ The node normally runs the Xray core bundled in `remnawave/node`. You can replac
 [Jolymmiles/Xray-core](https://github.com/Jolymmiles/Xray-core) — useful when you need a newer or patched core.
 
 - Offered during **every installation mode that deploys a node** (node-only and panel+node, nginx and Caddy), or any time via menu item **“Xray core for the node”**.
+- The **latest release is resolved from GitHub** and printed before you confirm, so you always see which version goes onto the node (if GitHub is unreachable, a known-good version is used instead).
 - The release is fetched **automatically** onto the server (no manual downloads), matched to the CPU
   architecture (amd64 / arm64 / arm32 / x86), verified against the `.dgst` **SHA256** checksum.
 - The binary is installed as `xray-core` next to `docker-compose.yml` (mode `744`) and mounted as

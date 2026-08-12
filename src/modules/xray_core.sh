@@ -4,7 +4,10 @@
 # Источник по умолчанию — форк Jolymmiles/Xray-core, версия закреплена.
 
 XRAY_ALT_REPO="Jolymmiles/Xray-core"
-XRAY_ALT_VERSION="v26.7.29"
+# better-fork: версия НЕ закреплена — берём последний релиз репозитория.
+# Пин ниже используется только как запасной вариант, если API GitHub недоступен.
+XRAY_ALT_FALLBACK_VERSION="v26.7.29"
+XRAY_ALT_VERSION=""
 XRAY_ALT_FILE="xray-core"
 XRAY_ALT_MOUNT="./${XRAY_ALT_FILE}:/usr/local/bin/xray"
 
@@ -16,6 +19,31 @@ xray_core_dir() {
         echo "/opt/remnawave"
     else
         return 1
+    fi
+    return 0
+}
+
+# Последний релиз форка (stdout = тег; код возврата 1 = сработал фолбэк)
+xray_core_latest_version() {
+    local v
+    v=$(curl -fsSL --connect-timeout 8 --max-time 15 \
+        "https://api.github.com/repos/${XRAY_ALT_REPO}/releases/latest" 2>/dev/null \
+        | jq -r '.tag_name // empty' 2>/dev/null)
+    if [ -n "$v" ] && [ "$v" != "null" ]; then
+        echo "$v"
+        return 0
+    fi
+    echo "$XRAY_ALT_FALLBACK_VERSION"
+    return 1
+}
+
+# Определить версию и сообщить пользователю, какая именно пойдёт в ноду
+xray_core_resolve_version() {
+    echo -e "${COLOR_YELLOW}${LANG[XRAY_CORE_RESOLVING]}${COLOR_RESET}"
+    if XRAY_ALT_VERSION=$(xray_core_latest_version); then
+        printf "${COLOR_GREEN}${LANG[XRAY_CORE_LATEST_FOUND]}${COLOR_RESET}\n" "$XRAY_ALT_VERSION"
+    else
+        printf "${COLOR_YELLOW}${LANG[XRAY_CORE_LATEST_FAILED]}${COLOR_RESET}\n" "$XRAY_ALT_VERSION"
     fi
     return 0
 }
@@ -118,6 +146,8 @@ install_alt_xray_core() {
     local compose="$dir/docker-compose.yml"
     [ -f "$compose" ] || { echo -e "${COLOR_RED}${LANG[XRAY_CORE_NO_NODE]}${COLOR_RESET}" >&2; return 1; }
 
+    [ -n "$XRAY_ALT_VERSION" ] || xray_core_resolve_version
+
     xray_core_download "$dir" || return 1
     if ! xray_core_add_mount "$compose"; then
         echo -e "${COLOR_RED}${LANG[XRAY_CORE_MOUNT_FAILED]}${COLOR_RESET}" >&2
@@ -156,10 +186,13 @@ xray_core_status() {
     # версия ядра, реально работающего в контейнере
     local rv; rv=$(docker exec remnanode xray version 2>/dev/null | head -n1)
     [ -n "$rv" ] && printf "${COLOR_WHITE}${LANG[XRAY_CORE_STATUS_RUNNING]}${COLOR_RESET}\n" "$rv"
+    local lv; lv=$(xray_core_latest_version)
+    printf "${COLOR_WHITE}${LANG[XRAY_CORE_STATUS_LATEST]}${COLOR_RESET}\n" "$lv"
     return 0
 }
 
 show_xray_core_menu() {
+    [ -n "$XRAY_ALT_VERSION" ] || xray_core_resolve_version
     echo -e ""
     echo -e "${COLOR_GREEN}${LANG[MENU_12]}${COLOR_RESET}"
     echo -e ""
@@ -215,6 +248,7 @@ manage_xray_core() {
 offer_alt_xray_core() {
     local dir="$1"
     echo -e ""
+    [ -n "$XRAY_ALT_VERSION" ] || xray_core_resolve_version
     printf "${COLOR_YELLOW}${LANG[XRAY_CORE_OFFER]}${COLOR_RESET}\n" "$XRAY_ALT_VERSION"
     echo -e "${COLOR_GRAY}${LANG[XRAY_CORE_SOURCE_NOTE]}${COLOR_RESET}"
     reading "${LANG[XRAY_CORE_OFFER_PROMPT]}" ans_alt_core
