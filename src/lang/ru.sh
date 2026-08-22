@@ -511,3 +511,7 @@ LANG[XRAY_CORE_COMPOSE_OK]="docker-compose.yml проверен — файл к�
 LANG[XRAY_CORE_COMPOSE_UNCHECKED]="Не удалось проверить docker-compose.yml (нет docker compose / python-yaml) — проверьте вручную."
 LANG[XRAY_CORE_COMPOSE_ROLLED_BACK]="После правки docker-compose.yml стал невалидным — восстановил из бэкапа: %s. Изменения не применены."
 LANG[XRAY_CORE_COMPOSE_WAS_BROKEN]="Примечание: docker-compose.yml был невалиден ещё до правки — откат не делаю."
+LANG[XRAY_CORE_TOOLS_MISSING]="Для установки ядра не хватает утилит: %s — устанавливаю..."
+LANG[XRAY_CORE_TOOLS_INSTALLED]="Необходимые утилиты установлены."
+LANG[XRAY_CORE_TOOLS_FAILED]="Не удалось установить утилиты: %s. Установите вручную (например, apt install %s) и повторите."
+LANG[XRAY_CORE_TOOLS_JQ_ONLY]="jq недоступен — последнюю версию определить не смогу, будет использована проверенная версия."

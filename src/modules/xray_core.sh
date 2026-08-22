@@ -206,9 +206,46 @@ xray_core_remove_mount() {
     return 0
 }
 
+# better-fork: меню ядра может использоваться на сервере, где наш install_packages не выполнялся
+# (нода поставлена вручную по compose из панели) — доустанавливаем нужные утилиты на месте.
+xray_core_ensure_tools() {
+    local need="" t
+    for t in curl unzip jq; do
+        command -v "$t" >/dev/null 2>&1 || need="$need $t"
+    done
+    [ -z "$need" ] && return 0
+
+    printf "${COLOR_YELLOW}${LANG[XRAY_CORE_TOOLS_MISSING]}${COLOR_RESET}\n" "$(echo $need)"
+    if command -v apt-get >/dev/null 2>&1; then
+        apt-get update -y >/dev/null 2>&1
+        apt-get install -y $need >/dev/null 2>&1
+    fi
+
+    local still=""
+    for t in $need; do
+        command -v "$t" >/dev/null 2>&1 || still="$still $t"
+    done
+    if [ -n "$still" ]; then
+        # jq нужен только для определения последней версии — без него работаем на фолбэке
+        local critical=""
+        for t in $still; do
+            [ "$t" = "jq" ] || critical="$critical $t"
+        done
+        if [ -n "$critical" ]; then
+            printf "${COLOR_RED}${LANG[XRAY_CORE_TOOLS_FAILED]}${COLOR_RESET}\n" "$(echo $critical)" "$(echo $critical)"
+            return 1
+        fi
+        printf "${COLOR_YELLOW}${LANG[XRAY_CORE_TOOLS_JQ_ONLY]}${COLOR_RESET}\n"
+        return 0
+    fi
+    echo -e "${COLOR_GREEN}${LANG[XRAY_CORE_TOOLS_INSTALLED]}${COLOR_RESET}"
+    return 0
+}
+
 # Скачать бинарь с проверкой SHA256 из .dgst
 xray_core_download() {
     local dir="$1"
+    xray_core_ensure_tools || return 1
     local asset; asset=$(xray_core_asset) || {
         printf "${COLOR_RED}${LANG[XRAY_CORE_ARCH_UNSUPPORTED]}${COLOR_RESET}\n" "$(uname -m)" >&2
         return 1
