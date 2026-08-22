@@ -61,12 +61,34 @@ xray_core_asset() {
     return 0
 }
 
+# better-fork: бэкап docker-compose.yml перед любой правкой (и установка, и откат).
+# Хранится рядом с файлом, с меткой времени; последние 5 копий остаются, старые чистятся.
+xray_core_backup_compose() {
+    local compose="$1"
+    [ -f "$compose" ] || return 1
+    local stamp; stamp=$(date +%Y%m%d-%H%M%S 2>/dev/null || echo manual)
+    local bak="${compose}.bak-${stamp}"
+    if cp -p "$compose" "$bak" 2>/dev/null; then
+        printf "${COLOR_GRAY}${LANG[XRAY_CORE_BACKUP_MADE]}${COLOR_RESET}\n" "$bak"
+        # оставляем только 5 последних бэкапов
+        ls -1t "${compose}".bak-* 2>/dev/null | tail -n +6 | while IFS= read -r old; do
+            rm -f "$old" 2>/dev/null
+        done
+        return 0
+    fi
+    echo -e "${COLOR_YELLOW}${LANG[XRAY_CORE_BACKUP_FAILED]}${COLOR_RESET}" >&2
+    return 1
+}
+
 # Добавить монтирование бинаря в сервис remnanode
 xray_core_add_mount() {
     local compose="$1"
     if grep -q "$XRAY_ALT_MOUNT" "$compose"; then
         return 0
     fi
+
+    xray_core_backup_compose "$compose"
+
     local tmp; tmp=$(mktemp) || return 1
 
     # better-fork: границы сервиса определяем ПО ОТСТУПУ, а не по именам других сервисов —
@@ -115,7 +137,11 @@ xray_core_add_mount() {
 
 xray_core_remove_mount() {
     local compose="$1"
-    sed -i "\|$XRAY_ALT_MOUNT|d" "$compose"
+    [ -f "$compose" ] || return 1
+    if grep -q "$XRAY_ALT_MOUNT" "$compose"; then
+        xray_core_backup_compose "$compose"
+        sed -i "\|$XRAY_ALT_MOUNT|d" "$compose"
+    fi
     return 0
 }
 

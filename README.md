@@ -6,7 +6,7 @@
   <a href="https://www.gnu.org/software/bash/"><img src="https://img.shields.io/badge/Bash-script-3DDC97?logo=gnubash&logoColor=white" alt="Bash" /></a>
   <img src="https://img.shields.io/badge/OS-Debian%20%7C%20Ubuntu-8b949e?logo=debian&logoColor=white" alt="OS" />
   <img src="https://img.shields.io/badge/stack-NGINX%20%C2%B7%20Caddy%20%C2%B7%20XRAY%20REALITY-2ea043" alt="Stack" />
-  <img src="https://img.shields.io/badge/version-3.4.1--better-3DDC97" alt="Version" />
+  <img src="https://img.shields.io/badge/version-3.4.2--better-3DDC97" alt="Version" />
   <img src="https://img.shields.io/badge/Remnawave-panel%203.x-2ea043" alt="Remnawave 3.x" />
   <a href="./LICENSE"><img src="https://img.shields.io/github/license/Mrvibecodic/better-remnawave-reverse-proxy?color=8b949e" alt="License" /></a>
 </p>
@@ -101,6 +101,7 @@ The node normally runs the Xray core bundled in `remnawave/node`. You can replac
   architecture (amd64 / arm64 / arm32 / x86), verified against the `.dgst` **SHA256** checksum.
 - The binary is installed as `xray-core` next to `docker-compose.yml` (mode `744`) and mounted as
   `./xray-core:/usr/local/bin/xray` in the `remnanode` service.
+- `docker-compose.yml` is **backed up before every change** (`docker-compose.yml.bak-<timestamp>`, last 5 kept), both when mounting the core and when rolling back.
 - Rollback to the image-bundled core is one menu action; status shows which core is active.
 
 > [!NOTE]

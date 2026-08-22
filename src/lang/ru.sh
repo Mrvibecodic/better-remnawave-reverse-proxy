@@ -505,3 +505,5 @@ LANG[XRAY_CORE_RESOLVING]="Определяю последний релиз яд
 LANG[XRAY_CORE_LATEST_FOUND]="Последний релиз: %s — именно эта версия пойдёт в ноду."
 LANG[XRAY_CORE_LATEST_FAILED]="Не удалось получить данные с GitHub — использую проверенную версию %s."
 LANG[XRAY_CORE_STATUS_LATEST]="Последний доступный релиз: %s"
+LANG[XRAY_CORE_BACKUP_MADE]="Бэкап docker-compose.yml сохранён: %s"
+LANG[XRAY_CORE_BACKUP_FAILED]="Предупреждение: не удалось сделать бэкап docker-compose.yml — продолжаю."
