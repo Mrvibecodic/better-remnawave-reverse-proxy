@@ -512,3 +512,7 @@ LANG[XRAY_CORE_LATEST_FAILED]="Could not reach GitHub — falling back to the kn
 LANG[XRAY_CORE_STATUS_LATEST]="Latest available release: %s"
 LANG[XRAY_CORE_BACKUP_MADE]="Backup of docker-compose.yml saved: %s"
 LANG[XRAY_CORE_BACKUP_FAILED]="Warning: could not back up docker-compose.yml — continuing anyway."
+LANG[XRAY_CORE_COMPOSE_OK]="docker-compose.yml validated successfully."
+LANG[XRAY_CORE_COMPOSE_UNCHECKED]="Could not validate docker-compose.yml (no docker compose / python-yaml) — please check it manually."
+LANG[XRAY_CORE_COMPOSE_ROLLED_BACK]="docker-compose.yml became invalid after the change — restored from backup: %s. Nothing was applied."
+LANG[XRAY_CORE_COMPOSE_WAS_BROKEN]="Note: docker-compose.yml was already invalid before this change — not rolling back."

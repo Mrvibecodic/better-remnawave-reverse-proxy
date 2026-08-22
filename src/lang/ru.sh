@@ -507,3 +507,7 @@ LANG[XRAY_CORE_LATEST_FAILED]="Не удалось получить данные
 LANG[XRAY_CORE_STATUS_LATEST]="Последний доступный релиз: %s"
 LANG[XRAY_CORE_BACKUP_MADE]="Бэкап docker-compose.yml сохранён: %s"
 LANG[XRAY_CORE_BACKUP_FAILED]="Предупреждение: не удалось сделать бэкап docker-compose.yml — продолжаю."
+LANG[XRAY_CORE_COMPOSE_OK]="docker-compose.yml проверен — файл корректен."
+LANG[XRAY_CORE_COMPOSE_UNCHECKED]="Не удалось проверить docker-compose.yml (нет docker compose / python-yaml) — проверьте вручную."
+LANG[XRAY_CORE_COMPOSE_ROLLED_BACK]="После правки docker-compose.yml стал невалидным — восстановил из бэкапа: %s. Изменения не применены."
+LANG[XRAY_CORE_COMPOSE_WAS_BROKEN]="Примечание: docker-compose.yml был невалиден ещё до правки — откат не делаю."

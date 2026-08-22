@@ -69,6 +69,7 @@ xray_core_backup_compose() {
     local stamp; stamp=$(date +%Y%m%d-%H%M%S 2>/dev/null || echo manual)
     local bak="${compose}.bak-${stamp}"
     if cp -p "$compose" "$bak" 2>/dev/null; then
+        XRAY_CORE_LAST_BACKUP="$bak"
         printf "${COLOR_GRAY}${LANG[XRAY_CORE_BACKUP_MADE]}${COLOR_RESET}\n" "$bak"
         # оставляем только 5 последних бэкапов
         ls -1t "${compose}".bak-* 2>/dev/null | tail -n +6 | while IFS= read -r old; do
@@ -80,6 +81,44 @@ xray_core_backup_compose() {
     return 1
 }
 
+# better-fork: проверка, что compose остался валидным. Возвращает 0 = валиден, 1 = сломан,
+# 2 = проверить нечем (нет ни docker compose, ни python-yaml).
+xray_core_compose_valid() {
+    local compose="$1"
+    local dir; dir=$(dirname "$compose")
+    if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+        ( cd "$dir" && docker compose config -q ) >/dev/null 2>&1 && return 0 || return 1
+    fi
+    if command -v python3 >/dev/null 2>&1 && python3 -c "import yaml" >/dev/null 2>&1; then
+        python3 -c "import sys,yaml; yaml.safe_load(open(sys.argv[1]))" "$compose" >/dev/null 2>&1 && return 0 || return 1
+    fi
+    return 2
+}
+
+# Проверить файл после правки и откатить из бэкапа, если мы его сломали
+xray_core_verify_or_rollback() {
+    local compose="$1"
+    local was_valid="$2"     # был ли файл валиден ДО правки
+    xray_core_compose_valid "$compose"
+    local rc=$?
+    if [ "$rc" -eq 0 ]; then
+        echo -e "${COLOR_GREEN}${LANG[XRAY_CORE_COMPOSE_OK]}${COLOR_RESET}"
+        return 0
+    fi
+    if [ "$rc" -eq 2 ]; then
+        echo -e "${COLOR_YELLOW}${LANG[XRAY_CORE_COMPOSE_UNCHECKED]}${COLOR_RESET}"
+        return 0
+    fi
+    # файл невалиден: если до нас он был в порядке — виноваты мы, откатываем
+    if [ "$was_valid" = "0" ] && [ -n "$XRAY_CORE_LAST_BACKUP" ] && [ -f "$XRAY_CORE_LAST_BACKUP" ]; then
+        cp -p "$XRAY_CORE_LAST_BACKUP" "$compose"
+        printf "${COLOR_RED}${LANG[XRAY_CORE_COMPOSE_ROLLED_BACK]}${COLOR_RESET}\n" "$XRAY_CORE_LAST_BACKUP"
+        return 1
+    fi
+    echo -e "${COLOR_YELLOW}${LANG[XRAY_CORE_COMPOSE_WAS_BROKEN]}${COLOR_RESET}"
+    return 0
+}
+
 # Добавить монтирование бинаря в сервис remnanode
 xray_core_add_mount() {
     local compose="$1"
@@ -87,44 +126,62 @@ xray_core_add_mount() {
         return 0
     fi
 
+    # better-fork: отступы берём ИЗ САМОГО ФАЙЛА. Compose, скопированный из панели, использует
+    # 4/8/12 пробела, наш генератор — 2/4/6; жёстко заданный отступ ломал YAML или склеивал
+    # строки списка. Границы сервиса определяются по отступу (вложенный depends_on не мешает).
+    local info
+    info=$(awk '
+        function ind(s){ match(s, /^[[:space:]]*/); return RLENGTH }
+        {
+            if (!in_node && $0 ~ /^[[:space:]]*remnanode:[[:space:]]*$/) { node=ind($0); in_node=1; next }
+            if (in_node) {
+                if ($0 ~ /^[[:space:]]*$/) next
+                i = ind($0)
+                if (i <= node) { in_node=0; next }
+                if (prop == 0) prop = i
+                if (invol && $0 ~ /^[[:space:]]*-/ && i >= volind) { if (item == 0) item = i; next }
+                if (invol && i <= volind) invol=0
+                if (!hasvol && $0 ~ /^[[:space:]]*volumes:[[:space:]]*$/) { hasvol=1; volind=i; invol=1 }
+            }
+        }
+        END { printf "%d %d %d %d %d", node+0, prop+0, hasvol+0, volind+0, item+0 }
+    ' "$compose")
+    local node_ind prop_ind has_vol vol_ind item_ind
+    read -r node_ind prop_ind has_vol vol_ind item_ind <<< "$info"
+
+    if [ "${node_ind:-0}" -eq 0 ] && ! grep -q "remnanode:" "$compose"; then
+        return 1
+    fi
+    [ "${prop_ind:-0}" -gt 0 ] || prop_ind=$((node_ind + 2))
+
+    xray_core_compose_valid "$compose"; local was_valid=$?
     xray_core_backup_compose "$compose"
 
     local tmp; tmp=$(mktemp) || return 1
-
-    # better-fork: границы сервиса определяем ПО ОТСТУПУ, а не по именам других сервисов —
-    # иначе вложенный "depends_on: remnawave:" внутри remnanode обрывал разбор (панель+нода).
-    awk -v mount="$XRAY_ALT_MOUNT" '
-        {
-            line = $0
-            if (!in_node && line ~ /^[[:space:]]*remnanode:[[:space:]]*$/) {
-                match(line, /^[[:space:]]*/); node_indent = RLENGTH
-                in_node = 1
+    if [ "${has_vol:-0}" -eq 1 ]; then
+        # добавляем элемент в существующий список с ЕГО отступом
+        [ "${item_ind:-0}" -gt 0 ] || item_ind=$((vol_ind + 2))
+        awk -v mount="$XRAY_ALT_MOUNT" -v volind="$vol_ind" -v itemind="$item_ind" '
+            function ind(s){ match(s, /^[[:space:]]*/); return RLENGTH }
+            {
+                line = $0
+                if (!in_node && line ~ /^[[:space:]]*remnanode:[[:space:]]*$/) { node=ind(line); in_node=1; print line; next }
+                if (in_node && !done && line ~ /^[[:space:]]*[^[:space:]]/ && ind(line) <= node) in_node=0
                 print line
-                next
+                if (in_node && !done && line ~ /^[[:space:]]*volumes:[[:space:]]*$/ && ind(line) == volind) {
+                    pad = sprintf("%*s", itemind, ""); print pad "- " mount; done=1
+                }
             }
-            if (in_node && !done && line ~ /^[[:space:]]*[^[:space:]]/) {
-                match(line, /^[[:space:]]*/)
-                if (RLENGTH <= node_indent) in_node = 0
-            }
-            print line
-            if (in_node && !done && line ~ /^[[:space:]]*volumes:[[:space:]]*$/) {
-                match(line, /^[[:space:]]*/); ind = substr(line, 1, RLENGTH)
-                print ind "  - " mount
-                done = 1
-            }
-        }
-    ' "$compose" > "$tmp" || { rm -f "$tmp"; return 1; }
-
-    # Запасной путь: у сервиса вообще нет секции volumes — создаём её сразу после remnanode:
-    if ! grep -q "$XRAY_ALT_MOUNT" "$tmp"; then
-        awk -v mount="$XRAY_ALT_MOUNT" '
+        ' "$compose" > "$tmp" || { rm -f "$tmp"; return 1; }
+    else
+        # секции volumes нет — создаём её на уровне остальных свойств сервиса
+        awk -v mount="$XRAY_ALT_MOUNT" -v propind="$prop_ind" '
             {
                 print
                 if (!done && $0 ~ /^[[:space:]]*remnanode:[[:space:]]*$/) {
-                    match($0, /^[[:space:]]*/); ind = substr($0, 1, RLENGTH)
-                    print ind "  volumes:"
-                    print ind "    - " mount
-                    done = 1
+                    padk = sprintf("%*s", propind, "");
+                    padv = sprintf("%*s", propind + 2, "");
+                    print padk "volumes:"; print padv "- " mount; done=1
                 }
             }
         ' "$compose" > "$tmp" || { rm -f "$tmp"; return 1; }
@@ -132,6 +189,8 @@ xray_core_add_mount() {
 
     grep -q "$XRAY_ALT_MOUNT" "$tmp" || { rm -f "$tmp"; return 1; }
     mv "$tmp" "$compose"
+
+    xray_core_verify_or_rollback "$compose" "$was_valid" || return 1
     return 0
 }
 
@@ -139,8 +198,10 @@ xray_core_remove_mount() {
     local compose="$1"
     [ -f "$compose" ] || return 1
     if grep -q "$XRAY_ALT_MOUNT" "$compose"; then
+        xray_core_compose_valid "$compose"; local was_valid=$?
         xray_core_backup_compose "$compose"
         sed -i "\|$XRAY_ALT_MOUNT|d" "$compose"
+        xray_core_verify_or_rollback "$compose" "$was_valid" || return 1
     fi
     return 0
 }
