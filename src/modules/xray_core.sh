@@ -67,18 +67,47 @@ xray_core_add_mount() {
     if grep -q "$XRAY_ALT_MOUNT" "$compose"; then
         return 0
     fi
-    local tmp; tmp=$(mktemp)
+    local tmp; tmp=$(mktemp) || return 1
+
+    # better-fork: границы сервиса определяем ПО ОТСТУПУ, а не по именам других сервисов —
+    # иначе вложенный "depends_on: remnawave:" внутри remnanode обрывал разбор (панель+нода).
     awk -v mount="$XRAY_ALT_MOUNT" '
-        /^[[:space:]]*remnanode:[[:space:]]*$/ { in_node=1 }
-        in_node && /^[[:space:]]*(remnawave-nginx|caddy|remnawave|remnawave-db|remnawave-redis|remnawave-subscription-page):[[:space:]]*$/ && !/remnanode/ { in_node=0 }
-        { print }
-        in_node && !done && /^[[:space:]]*volumes:[[:space:]]*$/ {
-            match($0, /^[[:space:]]*/)
-            indent = substr($0, 1, RLENGTH)
-            print indent "  - " mount
-            done=1
+        {
+            line = $0
+            if (!in_node && line ~ /^[[:space:]]*remnanode:[[:space:]]*$/) {
+                match(line, /^[[:space:]]*/); node_indent = RLENGTH
+                in_node = 1
+                print line
+                next
+            }
+            if (in_node && !done && line ~ /^[[:space:]]*[^[:space:]]/) {
+                match(line, /^[[:space:]]*/)
+                if (RLENGTH <= node_indent) in_node = 0
+            }
+            print line
+            if (in_node && !done && line ~ /^[[:space:]]*volumes:[[:space:]]*$/) {
+                match(line, /^[[:space:]]*/); ind = substr(line, 1, RLENGTH)
+                print ind "  - " mount
+                done = 1
+            }
         }
     ' "$compose" > "$tmp" || { rm -f "$tmp"; return 1; }
+
+    # Запасной путь: у сервиса вообще нет секции volumes — создаём её сразу после remnanode:
+    if ! grep -q "$XRAY_ALT_MOUNT" "$tmp"; then
+        awk -v mount="$XRAY_ALT_MOUNT" '
+            {
+                print
+                if (!done && $0 ~ /^[[:space:]]*remnanode:[[:space:]]*$/) {
+                    match($0, /^[[:space:]]*/); ind = substr($0, 1, RLENGTH)
+                    print ind "  volumes:"
+                    print ind "    - " mount
+                    done = 1
+                }
+            }
+        ' "$compose" > "$tmp" || { rm -f "$tmp"; return 1; }
+    fi
+
     grep -q "$XRAY_ALT_MOUNT" "$tmp" || { rm -f "$tmp"; return 1; }
     mv "$tmp" "$compose"
     return 0
