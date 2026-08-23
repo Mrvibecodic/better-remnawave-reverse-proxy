@@ -1,6 +1,6 @@
 #!/bin/bash
 
-SCRIPT_VERSION="3.5.1-better"
+SCRIPT_VERSION="3.5.2-better"
 UPDATE_AVAILABLE=false
 DIR_REMNAWAVE="/usr/local/remnawave_reverse/"
 LANG_FILE="${DIR_REMNAWAVE}selected_language"
@@ -1427,6 +1427,94 @@ configure_docker_mirror() {
     return 1
 }
 
+compose_diagnose_failure() {
+    # better-fork: разбор провала docker compose — какой контейнер не прошёл healthcheck,
+    # его логи и человеческая причина вместо сырого вывода compose.
+    local dir="${1:-.}"
+    local logf="$2"
+    local svc=""
+    local abs_dir
+    abs_dir=$(cd "$dir" 2>/dev/null && pwd)
+    [ -z "$abs_dir" ] && abs_dir="$dir"
+
+    [ -f "$logf" ] || return 1
+
+    svc=$(grep -oE 'container [A-Za-z0-9_.-]+ is unhealthy' "$logf" 2>/dev/null | head -n1 | awk '{print $2}')
+    [ -z "$svc" ] && svc=$(grep -oE 'dependency [A-Za-z0-9_.-]+ failed to start' "$logf" 2>/dev/null | head -n1 | awk '{print $2}')
+    [ -z "$svc" ] && return 1
+    docker inspect "$svc" >/dev/null 2>&1 || return 1
+
+    local clogf="${DIR_REMNAWAVE}${svc}.log"
+    mkdir -p "${DIR_REMNAWAVE}" 2>/dev/null
+    docker logs --tail 60 "$svc" > "$clogf" 2>&1
+
+    echo -e ""
+    echo -e "${COLOR_YELLOW}=================================================${COLOR_RESET}"
+    printf "${COLOR_RED}${LANG[DIAG_UNHEALTHY_TITLE]}${COLOR_RESET}\n" "$svc"
+    echo -e ""
+    printf "${COLOR_WHITE}${LANG[DIAG_CONTAINER_LOG]}${COLOR_RESET}\n" "$svc"
+    tail -n 20 "$clogf"
+    echo -e ""
+
+    local cause=""
+    if grep -qiE 'superuser password is not specified' "$clogf"; then
+        cause="DIAG_CAUSE_DB_NOPASS"
+    elif grep -qiE 'no space left on device|could not extend|write failed.*disk' "$clogf"; then
+        cause="DIAG_CAUSE_DISK"
+    elif grep -qiE 'out of memory|cannot allocate memory|could not map anonymous shared memory|killed process' "$clogf"; then
+        cause="DIAG_CAUSE_MEM"
+    elif grep -qiE 'incompatible with this version|was initialized by PostgreSQL version|is not compatible with this version' "$clogf"; then
+        cause="DIAG_CAUSE_OLD_VOLUME"
+    elif grep -qiE 'permission denied|operation not permitted' "$clogf"; then
+        cause="DIAG_CAUSE_PERM"
+    fi
+
+    local health
+    health=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$svc" 2>/dev/null)
+
+    case "$cause" in
+        DIAG_CAUSE_DB_NOPASS)
+            printf "${COLOR_RED}${LANG[DIAG_CAUSE_DB_NOPASS]}${COLOR_RESET}\n" "$abs_dir"
+            ;;
+        "")
+            if [ "$health" = "healthy" ] || grep -qiE 'ready to accept connections' "$clogf"; then
+                cause="DIAG_CAUSE_SLOW_INIT"
+                echo -e "${COLOR_YELLOW}${LANG[DIAG_CAUSE_SLOW_INIT]}${COLOR_RESET}"
+            else
+                cause="DIAG_CAUSE_UNKNOWN"
+                echo -e "${COLOR_YELLOW}${LANG[DIAG_CAUSE_UNKNOWN]}${COLOR_RESET}"
+            fi
+            ;;
+        *)
+            echo -e "${COLOR_RED}${LANG[$cause]}${COLOR_RESET}"
+            ;;
+    esac
+
+    local mem_total mem_avail disk_avail disk_path
+    mem_total=$(awk '/^MemTotal:/{printf "%d", $2/1024}' /proc/meminfo 2>/dev/null)
+    mem_avail=$(awk '/^MemAvailable:/{printf "%d", $2/1024}' /proc/meminfo 2>/dev/null)
+    disk_path="/var/lib/docker"
+    [ -d "$disk_path" ] || disk_path="/"
+    disk_avail=$(df -Pm "$disk_path" 2>/dev/null | awk 'NR==2{print $4}')
+    echo -e ""
+    printf "${COLOR_WHITE}${LANG[DIAG_RESOURCES]}${COLOR_RESET}\n" "${mem_total:-?}" "${mem_avail:-?}" "${disk_avail:-?}"
+    if [ -n "$mem_total" ] && [ "$mem_total" -lt 900 ] 2>/dev/null; then
+        echo -e "${COLOR_RED}${LANG[DIAG_LOW_MEM]}${COLOR_RESET}"
+    fi
+    if [ -n "$disk_avail" ] && [ "$disk_avail" -lt 2048 ] 2>/dev/null; then
+        echo -e "${COLOR_RED}${LANG[DIAG_LOW_DISK]}${COLOR_RESET}"
+    fi
+
+    echo -e ""
+    if [ "$cause" != "DIAG_CAUSE_OLD_VOLUME" ] && [ "$cause" != "DIAG_CAUSE_PERM" ]; then
+        printf "${COLOR_GREEN}${LANG[DIAG_RETRY_HINT]}${COLOR_RESET}\n" "$abs_dir"
+    fi
+    printf "${COLOR_WHITE}${LANG[DIAG_MANUAL_HINT]}${COLOR_RESET}\n" "$svc" "$clogf"
+    echo -e "${COLOR_YELLOW}=================================================${COLOR_RESET}"
+    echo -e ""
+    return 0
+}
+
 compose_up() {
     # better-fork: docker compose up с перехватом вывода и понятной ошибкой,
     # включая детект лимита Docker Hub (toomanyrequests) — раньше вывод уходил в /dev/null.
@@ -1444,6 +1532,7 @@ compose_up() {
         if grep -qiE 'toomanyrequests|pull rate limit|rate limit|429 Too Many' "$logf"; then
             echo -e "${COLOR_YELLOW}${LANG[DOCKER_RATE_LIMIT_HINT]}${COLOR_RESET}"
         fi
+        compose_diagnose_failure "$dir" "$logf"
         return 1
     fi
     return 0

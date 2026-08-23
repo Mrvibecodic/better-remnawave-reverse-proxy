@@ -236,6 +236,7 @@ EOL
         if grep -qiE 'toomanyrequests|pull rate limit|rate limit|429 Too Many' "$node_up_log"; then
             echo -e "${COLOR_YELLOW}${LANG[DOCKER_RATE_LIMIT_HINT]}${COLOR_RESET}"
         fi
+        compose_diagnose_failure "/opt/remnanode" "$node_up_log"
         exit 1
     fi
 
