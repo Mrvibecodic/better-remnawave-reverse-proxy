@@ -473,6 +473,9 @@ LANG[DIAG_LOW_MEM]="Внимание: памяти меньше 1 ГБ — ба�
 LANG[DIAG_LOW_DISK]="Внимание: свободно меньше 2 ГБ — этого может не хватить для образов и базы."
 LANG[DIAG_RETRY_HINT]="Повторить запуск: cd %s && docker compose up -d"
 LANG[DIAG_MANUAL_HINT]="Полный лог контейнера: docker logs %s   (сохранён в %s)"
+LANG[DIAG_AUTO_RETRY]="Контейнер %s не успел стать готовым к моменту проверки. Жду его готовности (до 2 минут) и повторю запуск..."
+LANG[DIAG_AUTO_RETRY_OK]="Контейнер %s готов. Повторяю запуск — установка продолжится."
+LANG[DIAG_AUTO_RETRY_FAIL]="Контейнер %s так и не стал готов. Разбираю причину."
 #better-fork: зеркало реестра docker
 LANG[DOCKER_MIRROR_PROMPT]="Настроить зеркало реестра Docker (помогает с лимитами Docker Hub / блокировками)? [y/N]: "
 LANG[DOCKER_MIRROR_ENTER]="Введите URL зеркала [по умолчанию: %s]: "

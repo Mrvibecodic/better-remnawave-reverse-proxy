@@ -1,6 +1,6 @@
 #!/bin/bash
 
-SCRIPT_VERSION="3.5.2-better"
+SCRIPT_VERSION="3.5.3-better"
 UPDATE_AVAILABLE=false
 DIR_REMNAWAVE="/usr/local/remnawave_reverse/"
 LANG_FILE="${DIR_REMNAWAVE}selected_language"
@@ -1427,6 +1427,23 @@ configure_docker_mirror() {
     return 1
 }
 
+compose_blocking_container() {
+    # better-fork: имя контейнера, из-за которого compose остановил запуск. Сначала берём его
+    # из строки «dependency failed to start: container X is unhealthy» — это именно блокирующий
+    # сервис; прочие unhealthy-контейнеры (например caddy панели, чей healthcheck ищет юникс-сокет
+    # из конфигурации ноды) в этот вывод не попадают, но приоритет всё равно задан явно.
+    local logf="$1"
+    local svc=""
+    [ -f "$logf" ] || return 1
+    svc=$(grep -oE 'dependency failed to start: container [A-Za-z0-9_.-]+ is unhealthy' "$logf" 2>/dev/null | head -n1 | awk '{print $6}')
+    [ -z "$svc" ] && svc=$(grep -oE 'container [A-Za-z0-9_.-]+ is unhealthy' "$logf" 2>/dev/null | head -n1 | awk '{print $2}')
+    [ -z "$svc" ] && svc=$(grep -oE 'dependency [A-Za-z0-9_.-]+ failed to start' "$logf" 2>/dev/null | head -n1 | awk '{print $2}')
+    [ -z "$svc" ] && return 1
+    docker inspect "$svc" >/dev/null 2>&1 || return 1
+    echo "$svc"
+    return 0
+}
+
 compose_diagnose_failure() {
     # better-fork: разбор провала docker compose — какой контейнер не прошёл healthcheck,
     # его логи и человеческая причина вместо сырого вывода compose.
@@ -1437,12 +1454,8 @@ compose_diagnose_failure() {
     abs_dir=$(cd "$dir" 2>/dev/null && pwd)
     [ -z "$abs_dir" ] && abs_dir="$dir"
 
-    [ -f "$logf" ] || return 1
-
-    svc=$(grep -oE 'container [A-Za-z0-9_.-]+ is unhealthy' "$logf" 2>/dev/null | head -n1 | awk '{print $2}')
-    [ -z "$svc" ] && svc=$(grep -oE 'dependency [A-Za-z0-9_.-]+ failed to start' "$logf" 2>/dev/null | head -n1 | awk '{print $2}')
-    [ -z "$svc" ] && return 1
-    docker inspect "$svc" >/dev/null 2>&1 || return 1
+    svc=$(compose_blocking_container "$logf") || return 1
+    [ -n "$svc" ] || return 1
 
     local clogf="${DIR_REMNAWAVE}${svc}.log"
     mkdir -p "${DIR_REMNAWAVE}" 2>/dev/null
@@ -1515,18 +1528,54 @@ compose_diagnose_failure() {
     return 0
 }
 
+compose_wait_healthy() {
+    # better-fork: ждём, пока контейнер сам дозреет до healthy (первый запуск БД бывает дольше
+    # окна healthcheck). Возвращаем 0 только если он действительно стал healthy.
+    local svc="$1"
+    local tries="${2:-40}"
+    local i=0 st
+    [ -n "$svc" ] || return 1
+    while [ "$i" -lt "$tries" ]; do
+        st=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}nohealthcheck{{end}}' "$svc" 2>/dev/null)
+        [ "$st" = "healthy" ] && return 0
+        [ "$st" = "nohealthcheck" ] && return 0
+        sleep 3
+        i=$((i + 1))
+    done
+    return 1
+}
+
 compose_up() {
     # better-fork: docker compose up с перехватом вывода и понятной ошибкой,
     # включая детект лимита Docker Hub (toomanyrequests) — раньше вывод уходил в /dev/null.
     local dir="${1:-.}"
     local logf="${DIR_REMNAWAVE}docker_up.log"
     mkdir -p "${DIR_REMNAWAVE}" 2>/dev/null
-    ( cd "$dir" && docker compose up -d ) > "$logf" 2>&1 &
-    local _pid=$!
-    spinner "$_pid" "${LANG[WAITING]}"
-    wait "$_pid"
-    local _rc=$?
-    if [ "$_rc" -ne 0 ]; then
+    local attempt=1
+    while :; do
+        ( cd "$dir" && docker compose up -d ) > "$logf" 2>&1 &
+        local _pid=$!
+        spinner "$_pid" "${LANG[WAITING]}"
+        wait "$_pid"
+        local _rc=$?
+        [ "$_rc" -eq 0 ] && return 0
+
+        # better-fork: контейнер мог просто не уложиться в окно healthcheck. Если он дозревает
+        # до healthy — молча дожидаемся и повторяем запуск один раз, чтобы установка не рвалась.
+        if [ "$attempt" -eq 1 ]; then
+            local svc
+            svc=$(compose_blocking_container "$logf")
+            if [ -n "$svc" ]; then
+                printf "${COLOR_YELLOW}${LANG[DIAG_AUTO_RETRY]}${COLOR_RESET}\n" "$svc"
+                if compose_wait_healthy "$svc"; then
+                    printf "${COLOR_GREEN}${LANG[DIAG_AUTO_RETRY_OK]}${COLOR_RESET}\n" "$svc"
+                    attempt=2
+                    continue
+                fi
+                printf "${COLOR_RED}${LANG[DIAG_AUTO_RETRY_FAIL]}${COLOR_RESET}\n" "$svc"
+            fi
+        fi
+
         echo -e "${COLOR_RED}${LANG[DOCKER_UP_FAILED]}${COLOR_RESET}"
         tail -n 25 "$logf"
         if grep -qiE 'toomanyrequests|pull rate limit|rate limit|429 Too Many' "$logf"; then
@@ -1534,8 +1583,7 @@ compose_up() {
         fi
         compose_diagnose_failure "$dir" "$logf"
         return 1
-    fi
-    return 0
+    done
 }
 
 install_or_update_yq() {

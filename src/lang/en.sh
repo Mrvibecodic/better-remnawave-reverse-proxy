@@ -478,6 +478,9 @@ LANG[DIAG_LOW_MEM]="Warning: less than 1 GB of RAM — the database may fail dur
 LANG[DIAG_LOW_DISK]="Warning: less than 2 GB free — this may not be enough for images and the database."
 LANG[DIAG_RETRY_HINT]="Start again: cd %s && docker compose up -d"
 LANG[DIAG_MANUAL_HINT]="Full container log: docker logs %s   (saved to %s)"
+LANG[DIAG_AUTO_RETRY]="Container %s was not ready in time. Waiting for it to become healthy (up to 2 minutes), then retrying..."
+LANG[DIAG_AUTO_RETRY_OK]="Container %s is healthy now. Retrying — the installation will continue."
+LANG[DIAG_AUTO_RETRY_FAIL]="Container %s never became healthy. Collecting diagnostics."
 #better-fork: docker registry mirror
 LANG[DOCKER_MIRROR_PROMPT]="Configure a Docker registry mirror (helps with Docker Hub rate limits / blocks)? [y/N]: "
 LANG[DOCKER_MIRROR_ENTER]="Enter mirror URL [default: %s]: "
