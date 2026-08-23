@@ -1,6 +1,6 @@
 #!/bin/bash
 
-SCRIPT_VERSION="3.5.3-better"
+SCRIPT_VERSION="3.5.4-better"
 UPDATE_AVAILABLE=false
 DIR_REMNAWAVE="/usr/local/remnawave_reverse/"
 LANG_FILE="${DIR_REMNAWAVE}selected_language"
@@ -194,6 +194,36 @@ reading() {
     read -rp " $(question "$1")" "$2"
 }
 
+read_yn() {
+    # better-fork: ввод y/n с переспросом. В переменную $1 кладётся нормализованный ответ
+    # (y или n), поэтому существующие проверки вида [[ "$confirm" != "y" ]] работают как прежде,
+    # но опечатка или случайная клавиша больше не считаются отказом и не прерывают работу.
+    # $2 — текст вопроса; пустая строка означает, что вопрос уже выведен вызывающим кодом.
+    local __var="$1"
+    local prompt="${2-${LANG[CONFIRM_PROMPT]}}"
+    local ans
+    while true; do
+        if [ -n "$prompt" ]; then
+            read -rp " $(question "$prompt")" ans || { printf -v "$__var" '%s' "n"; echo; return 1; }
+        else
+            read -r ans || { printf -v "$__var" '%s' "n"; echo; return 1; }
+        fi
+        ans="${ans,,}"
+        ans="${ans//[[:space:]]/}"
+        case "$ans" in
+            y|yes|д|да)
+                printf -v "$__var" '%s' "y"
+                return 0
+                ;;
+            n|no|н|нет)
+                printf -v "$__var" '%s' "n"
+                return 1
+                ;;
+        esac
+        echo -e "${COLOR_RED}${LANG[INVALID_YN]}${COLOR_RESET}"
+    done
+}
+
 error() {
     echo -e "${COLOR_RED}$*${COLOR_RESET}"
     exit 1
@@ -242,7 +272,7 @@ update_remnawave_reverse() {
     fi
 
     printf "${COLOR_YELLOW}${LANG[UPDATE_AVAILABLE]}${COLOR_RESET}\n" "$remote_version" "$SCRIPT_VERSION"
-    reading "${LANG[UPDATE_CONFIRM]}" confirm_update
+    read_yn confirm_update "${LANG[UPDATE_CONFIRM]}"
 
     if [[ "$confirm_update" != "y" && "$confirm_update" != "Y" ]]; then
         echo -e "${COLOR_YELLOW}${LANG[UPDATE_CANCELLED]}${COLOR_RESET}"
@@ -397,7 +427,7 @@ remove_script() {
     case $SUB_OPTION in
         1)
             echo -e "${COLOR_RED}${LANG[CONFIRM_REMOVE_SCRIPT]}${COLOR_RESET}"
-            read confirm
+            read_yn confirm ""
             if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
                 echo -e "${COLOR_YELLOW}${LANG[EXIT]}${COLOR_RESET}"
                 return 0
@@ -411,7 +441,7 @@ remove_script() {
             ;;
         2)
             echo -e "${COLOR_RED}${LANG[CONFIRM_REMOVE_ALL]}${COLOR_RESET}"
-            read confirm
+            read_yn confirm ""
             if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
                 echo -e "${COLOR_YELLOW}${LANG[EXIT]}${COLOR_RESET}"
                 return 0
@@ -651,7 +681,7 @@ manage_install() {
             echo -e ""
             echo -e "${COLOR_YELLOW}${LANG[PANEL_NODE_SINGLE_SERVER_RECOMMENDATION]}${COLOR_RESET}"
             echo -e ""
-            reading "${LANG[CONFIRM_CONTINUE]}" confirm_install
+            read_yn confirm_install "${LANG[CONFIRM_CONTINUE]}"
             
             if [[ "$confirm_install" != "y" && "$confirm_install" != "Y" ]]; then
                 echo -e "${COLOR_YELLOW}${LANG[EXIT]}${COLOR_RESET}"
@@ -827,7 +857,7 @@ choose_reinstall_type() {
     case $REINSTALL_OPTION in
         1|2|3)
                 echo -e "${COLOR_RED}${LANG[REINSTALL_WARNING]}${COLOR_RESET}"
-                read confirm
+                read_yn confirm ""
                 if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
                     reinstall_remnawave
                     if [ ! -f ${DIR_REMNAWAVE}install_packages ]; then
@@ -1178,7 +1208,7 @@ edit_branding() {
     case $BRANDING_OPTION in
         1)
             reading "${LANG[ENTER_NEW_LOGO]}" new_logo
-            reading "${LANG[CONFIRM_CHANGE]}" confirm
+            read_yn confirm "${LANG[CONFIRM_CHANGE]}"
             if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
                 jq --arg logo "$new_logo" '.config.branding.logoUrl = $logo' "$config_file" > "${config_file}.tmp" && mv "${config_file}.tmp" "$config_file"
                 needs_restart=true
@@ -1186,7 +1216,7 @@ edit_branding() {
             ;;
         2)
             reading "${LANG[ENTER_NEW_NAME]}" new_name
-            reading "${LANG[CONFIRM_CHANGE]}" confirm
+            read_yn confirm "${LANG[CONFIRM_CHANGE]}"
             if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
                 jq --arg name "$new_name" '.config.branding.name = $name' "$config_file" > "${config_file}.tmp" && mv "${config_file}.tmp" "$config_file"
                 needs_restart=true
@@ -1194,7 +1224,7 @@ edit_branding() {
             ;;
         3)
             reading "${LANG[ENTER_NEW_SUPPORT]}" new_support
-            reading "${LANG[CONFIRM_CHANGE]}" confirm
+            read_yn confirm "${LANG[CONFIRM_CHANGE]}"
             if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
                 jq --arg support "$new_support" '.config.branding.supportUrl = $support' "$config_file" > "${config_file}.tmp" && mv "${config_file}.tmp" "$config_file"
                 needs_restart=true
@@ -1309,8 +1339,8 @@ delete_applications() {
     local selected_app=${app_map[$APP_DELETE_OPTION]}
     
     printf "${COLOR_YELLOW}${LANG[CONFIRM_DELETE_APP]}${COLOR_RESET}\n" "$selected_app" "$selected_platform"
-    read confirm
-    
+    read_yn confirm ""
+
     if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
         # Remove the application from the platform array
         jq --arg platform "$selected_platform" --arg app_name "$selected_app" '
@@ -1812,7 +1842,7 @@ check_domain() {
             echo -e "${COLOR_YELLOW}${LANG[WARNING_LABEL]}${COLOR_RESET}"
             echo -e "${COLOR_RED}${LANG[CHECK_DOMAIN_IP_FAIL]}${COLOR_RESET}"
             printf "${COLOR_YELLOW}${LANG[CHECK_DOMAIN_IP_FAIL_INSTRUCTION]}${COLOR_RESET}\n" "$domain" "$server_ip"
-            reading "${LANG[CONFIRM_PROMPT]}" confirm
+            read_yn confirm "${LANG[CONFIRM_PROMPT]}"
             if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
                 return 2
             fi
@@ -1862,7 +1892,7 @@ check_domain() {
                 echo -e "${COLOR_YELLOW}${LANG[WARNING_LABEL]}${COLOR_RESET}"
                 printf "${COLOR_RED}${LANG[CHECK_DOMAIN_CLOUDFLARE]}${COLOR_RESET}\n" "$domain" "$domain_ip"
                 echo -e "${COLOR_YELLOW}${LANG[CHECK_DOMAIN_CLOUDFLARE_INSTRUCTION]}${COLOR_RESET}"
-                reading "${LANG[CONFIRM_PROMPT]}" confirm
+                read_yn confirm "${LANG[CONFIRM_PROMPT]}"
                 if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
                     return 1
                 else
@@ -1876,7 +1906,7 @@ check_domain() {
             echo -e "${COLOR_YELLOW}${LANG[WARNING_LABEL]}${COLOR_RESET}"
             printf "${COLOR_RED}${LANG[CHECK_DOMAIN_MISMATCH]}${COLOR_RESET}\n" "$domain" "$domain_ip" "$server_ip"
             echo -e "${COLOR_YELLOW}${LANG[CHECK_DOMAIN_MISMATCH_INSTRUCTION]}${COLOR_RESET}"
-            reading "${LANG[CONFIRM_PROMPT]}" confirm
+            read_yn confirm "${LANG[CONFIRM_PROMPT]}"
             if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
                 return 1
             else

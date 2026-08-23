@@ -70,7 +70,7 @@ manage_warp_add_config() {
     echo -e "${COLOR_YELLOW}${LANG[WARP_CONFIRM_SERVER_PANEL]}${COLOR_RESET}"
     echo -e ""
     echo -e "${COLOR_GREEN}[?]${COLOR_RESET} ${COLOR_YELLOW}${LANG[CONFIRM_PROMPT]}${COLOR_RESET}"
-    read confirm
+    read_yn confirm ""
     echo
 
     if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
@@ -207,7 +207,7 @@ manage_warp_delete_settings() {
     echo -e "${COLOR_YELLOW}${LANG[WARP_CONFIRM_SERVER_PANEL]}${COLOR_RESET}"
     echo -e ""
     echo -e "${COLOR_GREEN}[?]${COLOR_RESET} ${COLOR_YELLOW}${LANG[CONFIRM_PROMPT]}${COLOR_RESET}"
-    read confirm
+    read_yn confirm ""
     echo
 
     if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then

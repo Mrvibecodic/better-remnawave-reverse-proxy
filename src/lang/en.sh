@@ -60,6 +60,7 @@ LANG[PROMPT_ACTION]="Select action (0-12):"
 LANG[INVALID_CHOICE]="Invalid choice. Please select 0-12"
 LANG[WARNING_LABEL]="WARNING:"
 LANG[CONFIRM_PROMPT]="Enter 'y' to continue or 'n' to exit (y/n):"
+LANG[INVALID_YN]="Unrecognised answer. Please enter 'y' (yes) or 'n' (no)."
 LANG[WARNING_NODE_PANEL]="Adding a node should only be done on the server where the panel is installed, not on the node server."
 LANG[CONFIRM_SERVER_PANEL]="Are you sure you are on the server with the installed panel?"
 #Remove Script

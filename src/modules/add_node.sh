@@ -11,7 +11,7 @@ add_node_to_panel() {
     echo -e "${COLOR_YELLOW}${LANG[CONFIRM_SERVER_PANEL]}${COLOR_RESET}"
     echo -e ""
     echo -e "${COLOR_GREEN}[?]${COLOR_RESET} ${COLOR_YELLOW}${LANG[CONFIRM_PROMPT]}${COLOR_RESET}"
-    read confirm
+    read_yn confirm ""
     echo
 
     if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
