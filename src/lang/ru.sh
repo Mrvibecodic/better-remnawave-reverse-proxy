@@ -57,6 +57,8 @@ LANG[INVALID_CHOICE]="Неверный выбор. Выберите 0-12."
 LANG[WARNING_LABEL]="ВНИМАНИЕ:"
 LANG[CONFIRM_PROMPT]="Введите 'y' для продолжения или 'n' для выхода (y/n):"
 LANG[INVALID_YN]="Не понял ответ. Введите 'y' (да) или 'n' (нет)."
+LANG[SCRIPT_DOWNLOAD_FAILED]="Не удалось скачать скрипт по адресу: %s"
+LANG[SCRIPT_DOWNLOAD_HINT]="Проверьте доступ к сети и к GitHub (curl -I этот адрес), наличие curl или wget и повторите запуск."
 LANG[WARNING_NODE_PANEL]="Добавление ноды должно выполняться только на сервере, где установлена панель, а не на сервере ноды."
 LANG[CONFIRM_SERVER_PANEL]="Вы уверены, что находитесь на сервере с установленной панелью?"
 #Remove Script

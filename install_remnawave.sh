@@ -1,6 +1,6 @@
 #!/bin/bash
 
-SCRIPT_VERSION="3.5.4-better"
+SCRIPT_VERSION="3.5.5-better"
 UPDATE_AVAILABLE=false
 DIR_REMNAWAVE="/usr/local/remnawave_reverse/"
 LANG_FILE="${DIR_REMNAWAVE}selected_language"
@@ -80,35 +80,33 @@ validate_downloaded_file() {
     if [ ! -s "$file" ]; then
         return 1
     fi
-    
-    # Check for HTTP error responses or rate limit errors
-    if grep -q "429" "$file" && grep -q "Too Many Requests" "$file"; then
+
+    # better-fork: раньше здесь искали подстроки "429"/"Too Many Requests"/"404"/"Not Found"
+    # по всему содержимому. Сам install_remnawave.sh содержит эти строки — в этой же проверке, —
+    # поэтому он НИКОГДА не проходил собственную валидацию: download_with_mirrors всегда
+    # возвращал неудачу, и установка молча падала на install_script_if_missing.
+    # Ответ-заглушку прокси или зеркала определяем по началу файла, а не по случайным словам.
+    if head -c 512 "$file" | grep -qiE '^[[:space:]]*(<!DOCTYPE|<html|<\?xml)'; then
         return 1
     fi
-    
-    if grep -q "404" "$file" && grep -q "Not Found" "$file"; then
-        return 1
-    fi
-    
-    # Check for Terms of Service warnings (GitHub scraping warning)
-    if grep -q "Terms of Service" "$file" && grep -q "scraping" "$file"; then
-        return 1
-    fi
-    
-    # For bash scripts, check for proper shebang
+
+    # For bash scripts, check for proper shebang and valid syntax
     if [[ "$file_type" == "script" ]] || [[ "$file_type" == "lang" ]] || [[ "$file_type" == "module" ]]; then
         if ! head -1 "$file" | grep -q "^#!/bin/bash"; then
             return 1
         fi
+        if ! bash -n "$file" 2>/dev/null; then
+            return 1
+        fi
     fi
-    
+
     # For language files, check for LANG array declaration
     if [ "$file_type" = "lang" ]; then
         if ! grep -q "declare -gA LANG" "$file"; then
             return 1
         fi
     fi
-    
+
     return 0
 }
 
@@ -485,8 +483,19 @@ install_script_if_missing() {
         
         # Use download_with_mirrors for reliable download
         if ! download_with_mirrors "$SCRIPT_URL" "${DIR_REMNAWAVE}remnawave_reverse" "script"; then
-            # Fallback: try direct download
-            if ! wget -q -O "${DIR_REMNAWAVE}remnawave_reverse" "$SCRIPT_URL" 2>/dev/null; then
+            # better-fork: запасной путь пробует и curl, и wget (раньше только wget — если его
+            # не было в системе, скрипт выходил с кодом 1 вообще без единого сообщения).
+            local dl_ok=false
+            if command -v curl >/dev/null 2>&1; then
+                curl -fsSL --connect-timeout 10 --max-time 60 "$SCRIPT_URL" -o "${DIR_REMNAWAVE}remnawave_reverse" 2>/dev/null && dl_ok=true
+            fi
+            if [ "$dl_ok" != "true" ] && command -v wget >/dev/null 2>&1; then
+                wget -q --timeout=15 --tries=2 -O "${DIR_REMNAWAVE}remnawave_reverse" "$SCRIPT_URL" 2>/dev/null && dl_ok=true
+            fi
+            if [ "$dl_ok" != "true" ] || [ ! -s "${DIR_REMNAWAVE}remnawave_reverse" ]; then
+                rm -f "${DIR_REMNAWAVE}remnawave_reverse"
+                printf "${COLOR_RED}${LANG[SCRIPT_DOWNLOAD_FAILED]}${COLOR_RESET}\n" "$SCRIPT_URL"
+                echo -e "${COLOR_YELLOW}${LANG[SCRIPT_DOWNLOAD_HINT]}${COLOR_RESET}"
                 exit 1
             fi
         fi
