@@ -1,6 +1,6 @@
 #!/bin/bash
 
-SCRIPT_VERSION="3.5.5-better"
+SCRIPT_VERSION="3.5.6-better"
 UPDATE_AVAILABLE=false
 DIR_REMNAWAVE="/usr/local/remnawave_reverse/"
 LANG_FILE="${DIR_REMNAWAVE}selected_language"
@@ -148,17 +148,38 @@ set_language() {
      unset LANG
      declare -gA LANG
 
+     # better-fork: файл переводов скачивался ровно один раз и больше никогда не обновлялся.
+     # После обновления скрипта новые пункты меню оставались пустыми (ключа нет в старом файле).
+     # Держим рядом отметку версии и перекачиваем перевод, когда версия скрипта изменилась.
+     local lang_stamp="${lang_file}.ver"
+     if [ "$force_update" != "true" ] && [ -f "$lang_file" ] && \
+        [ "$(cat "$lang_stamp" 2>/dev/null)" != "$SCRIPT_VERSION" ]; then
+         force_update="true"
+     fi
+
      if [ "$force_update" = "true" ] || [ ! -f "$lang_file" ]; then
          local lang_url="${LANG_BASE_URL}/${lang}.sh"
          mkdir -p "${DIR_REMNAWAVE}lang"
-         
+
          # Use download_with_mirrors for reliable download
-         if ! download_with_mirrors "$lang_url" "$lang_file" "lang"; then
-             # Fallback: try direct download if mirrors fail
+         if download_with_mirrors "$lang_url" "$lang_file" "lang"; then
+             echo "$SCRIPT_VERSION" > "$lang_stamp" 2>/dev/null
+         else
+             # better-fork: запасная закачка идёт во временный файл и проверяется перед заменой —
+             # раньше неудачный ответ затирал рабочий перевод прямо на месте.
+             local tmp_lang="${lang_file}.tmp"
+             local lang_got=false
              if command -v curl &> /dev/null; then
-                 curl -sL "$lang_url" -o "$lang_file" 2>/dev/null
-             elif command -v wget &> /dev/null; then
-                 wget -q "$lang_url" -O "$lang_file" 2>/dev/null
+                 curl -fsSL --connect-timeout 10 --max-time 60 "$lang_url" -o "$tmp_lang" 2>/dev/null && lang_got=true
+             fi
+             if [ "$lang_got" != "true" ] && command -v wget &> /dev/null; then
+                 wget -q --timeout=15 --tries=2 "$lang_url" -O "$tmp_lang" 2>/dev/null && lang_got=true
+             fi
+             if [ "$lang_got" = "true" ] && validate_downloaded_file "$tmp_lang" "lang"; then
+                 mv -f "$tmp_lang" "$lang_file"
+                 echo "$SCRIPT_VERSION" > "$lang_stamp" 2>/dev/null
+             else
+                 rm -f "$tmp_lang"
              fi
          fi
      fi
@@ -2647,6 +2668,14 @@ load_module() {
     local module_url="https://raw.githubusercontent.com/Mrvibecodic/better-remnawave-reverse-proxy/refs/heads/main/src/${module_type}/${module_name}.sh"
     local force_update="${3:-false}"
 
+    # better-fork: модули, как и переводы, кешировались навсегда — после обновления скрипта
+    # продолжал работать старый код модуля. Отметка версии заставляет перекачать его один раз.
+    local module_stamp="${module_file}.ver"
+    if [ "$force_update" != "true" ] && [ -f "$module_file" ] && \
+       [ "$(cat "$module_stamp" 2>/dev/null)" != "$SCRIPT_VERSION" ]; then
+        force_update="true"
+    fi
+
     if [ "$force_update" = "true" ] || [ ! -f "$module_file" ]; then
         mkdir -p "${DIR_REMNAWAVE}${module_type}"
 
@@ -2658,6 +2687,7 @@ load_module() {
         # Use download_with_mirrors for reliable download
         if download_with_mirrors "$module_url" "$module_file" "module"; then
             rm -f "$backup_file"
+            echo "$SCRIPT_VERSION" > "$module_stamp" 2>/dev/null
         else
             # Fallback: try direct download if mirrors fail
             if command -v curl &> /dev/null; then
@@ -2684,6 +2714,7 @@ load_module() {
                 return 1
             fi
             rm -f "$backup_file"
+            echo "$SCRIPT_VERSION" > "$module_stamp" 2>/dev/null
         fi
     fi
 
