@@ -6,13 +6,23 @@
   <a href="https://www.gnu.org/software/bash/"><img src="https://img.shields.io/badge/Bash-script-3DDC97?logo=gnubash&logoColor=white" alt="Bash" /></a>
   <img src="https://img.shields.io/badge/OS-Debian%20%7C%20Ubuntu-8b949e?logo=debian&logoColor=white" alt="OS" />
   <img src="https://img.shields.io/badge/stack-NGINX%20%C2%B7%20Caddy%20%C2%B7%20XRAY%20REALITY-2ea043" alt="Stack" />
-  <img src="https://img.shields.io/badge/version-3.5.1--better-3DDC97" alt="Version" />
+  <img src="https://img.shields.io/badge/version-3.5.7--better-3DDC97" alt="Version" />
   <img src="https://img.shields.io/badge/Remnawave-panel%203.x-2ea043" alt="Remnawave 3.x" />
   <a href="./LICENSE"><img src="https://img.shields.io/github/license/Mrvibecodic/better-remnawave-reverse-proxy?color=8b949e" alt="License" /></a>
 </p>
 
 <p align="center">
   <a href="/README.md">English</a> | <strong>Русский</strong>
+</p>
+
+<p align="center">
+  <a href="https://t.me/+2lmP1yhxpCE3MDcy"><img src="https://img.shields.io/badge/Telegram-%D0%93%D1%80%D1%83%D0%BF%D0%BF%D0%B0-2AABEE?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram группа" /></a>
+  &nbsp;
+  <a href="https://t.me/+8BJQXYXYLqM4YWYy"><img src="https://img.shields.io/badge/Telegram-%D0%A7%D0%B0%D1%82-229ED9?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram чат" /></a>
+</p>
+
+<p align="center">
+  <sub>Новости и релизы — <a href="https://t.me/+2lmP1yhxpCE3MDcy">группа</a> · вопросы и поддержка — <a href="https://t.me/+8BJQXYXYLqM4YWYy">чат</a></sub>
 </p>
 
 <p align="center">
@@ -147,6 +157,13 @@ SSL через **Cloudflare API**, **Gcore API** (wildcard, DNS‑01) или **A
 - Правила UFW; NODE_PORT открывается **только** для IP панели (с предупреждением, если UFW не активен).
 - ECDSA‑сертификаты с автообновлением; BBR.
 - Контейнеризованные nginx/caddy/Postgres/Valkey — пины образов для воспроизводимости.
+
+---
+
+## 💬 Сообщество
+
+- **Группа** — новости и релизы форка: [t.me/+2lmP1yhxpCE3MDcy](https://t.me/+2lmP1yhxpCE3MDcy)
+- **Чат** — вопросы, помощь с установкой, обсуждения: [t.me/+8BJQXYXYLqM4YWYy](https://t.me/+8BJQXYXYLqM4YWYy)
 
 ---
 

@@ -6,13 +6,23 @@
   <a href="https://www.gnu.org/software/bash/"><img src="https://img.shields.io/badge/Bash-script-3DDC97?logo=gnubash&logoColor=white" alt="Bash" /></a>
   <img src="https://img.shields.io/badge/OS-Debian%20%7C%20Ubuntu-8b949e?logo=debian&logoColor=white" alt="OS" />
   <img src="https://img.shields.io/badge/stack-NGINX%20%C2%B7%20Caddy%20%C2%B7%20XRAY%20REALITY-2ea043" alt="Stack" />
-  <img src="https://img.shields.io/badge/version-3.5.1--better-3DDC97" alt="Version" />
+  <img src="https://img.shields.io/badge/version-3.5.7--better-3DDC97" alt="Version" />
   <img src="https://img.shields.io/badge/Remnawave-panel%203.x-2ea043" alt="Remnawave 3.x" />
   <a href="./LICENSE"><img src="https://img.shields.io/github/license/Mrvibecodic/better-remnawave-reverse-proxy?color=8b949e" alt="License" /></a>
 </p>
 
 <p align="center">
   <strong>English</strong> | <a href="/README-RU.md">Русский</a>
+</p>
+
+<p align="center">
+  <a href="https://t.me/+2lmP1yhxpCE3MDcy"><img src="https://img.shields.io/badge/Telegram-Group-2AABEE?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram group" /></a>
+  &nbsp;
+  <a href="https://t.me/+8BJQXYXYLqM4YWYy"><img src="https://img.shields.io/badge/Telegram-Chat-229ED9?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram chat" /></a>
+</p>
+
+<p align="center">
+  <sub>News and releases — <a href="https://t.me/+2lmP1yhxpCE3MDcy">group</a> · questions and support — <a href="https://t.me/+8BJQXYXYLqM4YWYy">chat</a></sub>
 </p>
 
 <p align="center">
@@ -147,6 +157,13 @@ SSL via **Cloudflare API**, **Gcore API** (wildcard, DNS‑01) or **ACME HTTP‑
 - UFW firewall rules; NODE_PORT opened **only** for the panel IP (with a warning if UFW is inactive).
 - ECDSA certificates with automatic renewal; BBR congestion control.
 - Containerised nginx/caddy/Postgres/Valkey — pinned image tags for reproducibility.
+
+---
+
+## 💬 Community
+
+- **Group** — news and releases of the fork: [t.me/+2lmP1yhxpCE3MDcy](https://t.me/+2lmP1yhxpCE3MDcy)
+- **Chat** — questions, install help, discussions: [t.me/+8BJQXYXYLqM4YWYy](https://t.me/+8BJQXYXYLqM4YWYy)
 
 ---
 
