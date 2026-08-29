@@ -1,6 +1,6 @@
 #!/bin/bash
 
-SCRIPT_VERSION="3.5.6-better"
+SCRIPT_VERSION="3.5.7-better"
 UPDATE_AVAILABLE=false
 DIR_REMNAWAVE="/usr/local/remnawave_reverse/"
 LANG_FILE="${DIR_REMNAWAVE}selected_language"
@@ -2308,7 +2308,7 @@ EOL
             fi
 
             if [ "$certbot_exit_code" -ne 0 ]; then
-                cert_status["$cert_domain"]="${LANG[ERROR_UPDATE]}: ${LANG[RATE_LIMIT_EXCEEDED]}"
+                cert_status["$cert_domain"]="${LANG[ERROR_UPDATE]}: ${LANG[CERTBOT_RENEWAL_FAILED]}"
                 continue
             fi
 
@@ -2428,6 +2428,42 @@ check_cert_expiry() {
     return 0
 }
 
+web_server_container() {
+    # better-fork: имя контейнера веб-сервера определяется по факту. В форке их три варианта
+    # (панель на nginx, панель на Caddy, нода на Caddy), а хуки certbot знали только nginx.
+    local c
+    for c in remnawave-nginx remnawave-caddy caddy-remnawave; do
+        if docker ps -a --format '{{.Names}}' 2>/dev/null | grep -qx "$c"; then
+            echo "$c"
+            return 0
+        fi
+    done
+    return 1
+}
+
+configure_certbot_renewal_hooks() {
+    # better-fork: единая точка записи хука перезапуска веб-сервера после продления.
+    # Раньше хук писали два разных места разными строками, он был жёстко привязан к
+    # /opt/remnawave и к контейнеру remnawave-nginx — на ноде (/opt/remnanode) и на Caddy
+    # он просто не срабатывал. Используем renew_hook: именно этот ключ certbot читает из
+    # конфига обновления (deploy_hook в файле конфигурации не подхватывается).
+    local renewal_conf="$1"
+    [ -f "$renewal_conf" ] || return 1
+
+    sed -i -E '/^(pre_hook|post_hook|renew_hook|deploy_hook) = /d' "$renewal_conf"
+
+    local container
+    container=$(web_server_container) || return 0
+
+    local docker_bin
+    docker_bin=$(command -v docker 2>/dev/null)
+    [ -z "$docker_bin" ] && docker_bin="/usr/bin/docker"
+
+    # "|| true" — отсутствие контейнера не должно срывать продление сертификата.
+    echo "renew_hook = $docker_bin restart $container || true" >> "$renewal_conf"
+    return 0
+}
+
 fix_letsencrypt_structure() {
     local domain=$1
     local live_dir="/etc/letsencrypt/live/$domain"
@@ -2490,9 +2526,7 @@ fix_letsencrypt_structure() {
         sed -i "s|^privkey =.*|privkey = $privkey_path|" "$renewal_conf"
     fi
 
-    local expected_hook="renew_hook = sh -c 'cd /opt/remnawave && docker compose down remnawave-nginx && docker compose up -d remnawave-nginx && docker compose exec remnawave-nginx nginx -s reload'"
-    sed -i '/^renew_hook/d' "$renewal_conf"
-    echo "$expected_hook" >> "$renewal_conf"
+    configure_certbot_renewal_hooks "$renewal_conf"
 
     chmod 644 "$live_dir/cert.pem" "$live_dir/chain.pem" "$live_dir/fullchain.pem"
     chmod 600 "$live_dir/privkey.pem"
@@ -2553,6 +2587,24 @@ handle_certificates() {
     else
         echo -e "${COLOR_GREEN}${LANG[CERTS_SKIPPED]}${COLOR_RESET}"
         cert_method="1"
+        # better-fork: раньше здесь метод всегда становился "1", и в крон уходило продление
+        # без открытия 80-го порта — сертификаты, выпущенные по HTTP-01, ночью не продлевались
+        # при включённом ufw. Определяем фактический метод по существующему конфигу обновления.
+        for domain in "${!domains_to_check_ref[@]}"; do
+            local existing_conf="/etc/letsencrypt/renewal/$domain.conf"
+            local base_domain
+            base_domain=$(extract_domain "$domain")
+            if [ -f "/etc/letsencrypt/renewal/$base_domain.conf" ] && is_wildcard_cert "$base_domain"; then
+                existing_conf="/etc/letsencrypt/renewal/$base_domain.conf"
+            fi
+
+            if grep -Eq '^[[:space:]]*authenticator[[:space:]]*=[[:space:]]*standalone[[:space:]]*$' "$existing_conf" 2>/dev/null; then
+                cert_method="2"
+                break
+            elif grep -q "dns-gcore" "$existing_conf" 2>/dev/null; then
+                cert_method="3"
+            fi
+        done
     fi
 
     declare -A cert_domains_added
@@ -2647,15 +2699,20 @@ handle_certificates() {
         echo -e "${COLOR_YELLOW}${LANG[CRON_ALREADY_EXISTS]}${COLOR_RESET}"
     fi
 
-    for domain in "${!unique_domains[@]}"; do
-        if [ -f "/etc/letsencrypt/renewal/$domain.conf" ]; then
-            desired_hook="renew_hook = sh -c 'cd $target_dir && docker compose down remnawave-nginx && docker compose up -d remnawave-nginx'"
-            if ! grep -q "renew_hook" "/etc/letsencrypt/renewal/$domain.conf"; then
-                echo "$desired_hook" >> "/etc/letsencrypt/renewal/$domain.conf"
-            elif ! grep -Fx "$desired_hook" "/etc/letsencrypt/renewal/$domain.conf"; then
-                sed -i "/renew_hook/c\\$desired_hook" "/etc/letsencrypt/renewal/$domain.conf"
-                echo -e "${COLOR_YELLOW}${LANG[UPDATED_RENEW_AUTH]}${COLOR_RESET}"
-            fi
+    # better-fork: цикл шёл по unique_domains, который наполняется только в ветках Cloudflare
+    # и Gcore. При HTTP-01 и при «сертификаты уже есть» массив пуст, и хук перезапуска не
+    # прописывался вовсе — после автопродления веб-сервер отдавал старый сертификат.
+    for domain in "${!domains_to_check_ref[@]}"; do
+        local cert_domain="$domain"
+        local base_domain
+        base_domain=$(extract_domain "$domain")
+        if [ -f "/etc/letsencrypt/renewal/$base_domain.conf" ] && is_wildcard_cert "$base_domain"; then
+            cert_domain="$base_domain"
+        fi
+
+        local renewal_conf="/etc/letsencrypt/renewal/$cert_domain.conf"
+        if [ -f "$renewal_conf" ]; then
+            configure_certbot_renewal_hooks "$renewal_conf"
         fi
     done
 }
